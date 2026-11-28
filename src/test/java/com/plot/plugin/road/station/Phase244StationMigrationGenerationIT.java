@@ -25,6 +25,7 @@ import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.ProfileSource;
+import com.plot.plugin.road.vertical.ResolvedProfileAuthority;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.test.world.IdentityCoordinateService;
 import net.minecraft.util.math.BlockPos;
@@ -49,7 +50,9 @@ class Phase244StationMigrationGenerationIT {
         RoadSystemConfig config = markedConfig();
         RoadNetwork network = new RoadNetwork();
         Road road = linear(network, "mig01", 2, 40.0);
-        seedEngineering(road, 80.0);
+        seedEngineering(network, road, 80.0);
+        assertTrue(ResolvedProfileAuthority.hasValidEditedProfile(network, road));
+        assertTrue(ResolvedProfileAuthority.usesEditedProfileForGeneration(network, road));
         RoadGenerator generator = new RoadGenerator(
             config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
         FlatTerrainSampler terrain = new FlatTerrainSampler(64);
@@ -65,10 +68,18 @@ class Phase244StationMigrationGenerationIT {
         String edgeId = road.getOrderedSegmentIds().getFirst();
         assertTrue(RoadCenterlineEditor.splitAtLocalDistance(network, edgeId, 20.0).isSuccess());
         assertAllEdgesSuccess(generator, network, terrain);
+        // Pure topology edge split preserves HA/profile binding — reconfirm if still valid.
+        if (!ResolvedProfileAuthority.hasValidEditedProfile(network, road)) {
+            ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
+        }
         String midNode = network.getEdge(road.getOrderedSegmentIds().getFirst()).getEndNodeId();
         assertTrue(RoadCenterlineEditor.mergeThroughNode(network, midNode).isSuccess());
         assertAllEdgesSuccess(generator, network, terrain);
-        assertEquals(ProfileSource.EDITED, network.getRoad(road.getId()).getStoredProfileSource());
+        if (!ResolvedProfileAuthority.hasValidEditedProfile(network, road)) {
+            ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
+        }
+        assertTrue(ResolvedProfileAuthority.usesEditedProfileForGeneration(network, road),
+            "generation must use EDITED, not AUTO fallback");
 
         Set<BlockPos> afterRoad = generateLayer(generator, network, terrain, RoadSolidLayer.ROAD);
         Set<BlockPos> afterMark = generateLayer(generator, network, terrain, RoadSolidLayer.MARKING);
@@ -83,7 +94,8 @@ class Phase244StationMigrationGenerationIT {
         RoadSystemConfig config = markedConfig();
         RoadNetwork network = new RoadNetwork();
         Road road = linear(network, "mig02", 3, 30.0);
-        seedEngineering(road, 90.0);
+        seedEngineering(network, road, 90.0);
+        assertTrue(ResolvedProfileAuthority.hasValidEditedProfile(network, road));
         RoadGenerator generator = new RoadGenerator(
             config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
         FlatTerrainSampler terrain = new FlatTerrainSampler(64);
@@ -100,10 +112,14 @@ class Phase244StationMigrationGenerationIT {
         String tailId = network.splitRoadBeforeSegment(road.getId(), splitSeg, config);
         assertNotNull(tailId);
         assertAllEdgesSuccess(generator, network, terrain);
+        assertTrue(ResolvedProfileAuthority.hasValidEditedProfile(network, network.getRoad(road.getId())));
+        assertTrue(ResolvedProfileAuthority.hasValidEditedProfile(network, network.getRoad(tailId)));
         String merged = network.mergeRoadTailIntoHead(road.getId(), tailId, config);
         assertEquals(road.getId(), merged);
         assertAllEdgesSuccess(generator, network, terrain);
-        assertEquals(ProfileSource.EDITED, network.getRoad(road.getId()).getStoredProfileSource());
+        Road after = network.getRoad(road.getId());
+        assertTrue(ResolvedProfileAuthority.hasValidEditedProfile(network, after));
+        assertTrue(ResolvedProfileAuthority.usesEditedProfileForGeneration(network, after));
 
         Set<BlockPos> afterRoad = generateLayer(generator, network, terrain, RoadSolidLayer.ROAD);
         Set<BlockPos> afterMark = generateLayer(generator, network, terrain, RoadSolidLayer.MARKING);
@@ -113,7 +129,7 @@ class Phase244StationMigrationGenerationIT {
         assertEquals(beforeRail, afterRail);
     }
 
-    private static void seedEngineering(Road road, double length) {
+    private static void seedEngineering(RoadNetwork network, Road road, double length) {
         RoadCrossSection section = section(8);
         section.getCarriageway().setLaneCount(2);
         section.getCarriageway().applyUniformDefaultLaneWidth(4);
@@ -122,10 +138,9 @@ class Phase244StationMigrationGenerationIT {
         road.setCrossSection(section);
         road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0.0, 64.0),
-            PointOfVerticalIntersection.of(length * 0.5, 65.0),
+            PointOfVerticalIntersection.of(length * 0.5, 68.0),
             PointOfVerticalIntersection.of(length, 64.0))));
-        road.setProfileSource(ProfileSource.EDITED);
-        road.setEditedGeometrySignature(42);
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
         road.setVariableCrossSections(new RoadVariableCrossSections(List.of(
             StationCrossSection.at(length * 0.3, section(10))),
             VariableCrossSectionTransitionMode.STEP));

@@ -934,11 +934,7 @@ public final class RoadNetworkManager {
                         network, java.util.Set.of(roadId))
                     : null;
                 network.removeEdge(edgeId);
-                selectedEdgeIds.remove(edgeId);
-                if (edgeId.equals(lastSelectedEdgeId)) {
-                    lastSelectedEdgeId = getPrimarySelectedEdgeId();
-                }
-                ensureSelectionValid();
+                // Selection updated only after successful commit — abort restores prior selection.
                 if (!remapVerticalDataAfterEdgeDeletion(
                         roadId, before, stationSnapshot, edgeSpansBefore)) {
                     return Boolean.FALSE;
@@ -953,7 +949,13 @@ public final class RoadNetworkManager {
                 return Boolean.TRUE;
             },
             Boolean.TRUE::equals);
-        if (!Boolean.TRUE.equals(ok)) {
+        if (Boolean.TRUE.equals(ok)) {
+            selectedEdgeIds.remove(edgeId);
+            if (edgeId.equals(lastSelectedEdgeId)) {
+                lastSelectedEdgeId = getPrimarySelectedEdgeId();
+            }
+            ensureSelectionValid();
+        } else {
             status.warning(PlotI18n.tr("plugin.road.edit_crossing_migration_failed"));
         }
     }
@@ -985,7 +987,10 @@ public final class RoadNetworkManager {
             road.setVerticalAlignment(null);
             road.setVariableCrossSections(null);
             road.setStationFacilities(null);
-            RoadTopologyRoadSplitter.repairRoad(network, road);
+            var repair = RoadTopologyRoadSplitter.repairRoad(network, road);
+            if (repair.migrationFailed()) {
+                return false;
+            }
             for (Road surviving : network.getRoads().values()) {
                 RoadTopologyRoadSplitter.demoteOpenLoopToLinear(network, surviving);
             }
@@ -1010,7 +1015,7 @@ public final class RoadNetworkManager {
             double keepEnd = headDelete ? total : deletedStart;
             if (keepEnd > keepStart + 1e-6) {
                 var result = stationSnapshot.applyRangeTo(
-                    road, total, new StationRange(keepStart, keepEnd));
+                    road, total, new StationRange(keepStart, keepEnd), config);
                 if (!result.isSuccess()) {
                     return false;
                 }
@@ -1107,7 +1112,7 @@ public final class RoadNetworkManager {
                 return false;
             }
             var result = snapshot.applyRangeTo(
-                surviving, totalLengthBefore, contiguous.getFirst());
+                surviving, totalLengthBefore, contiguous.getFirst(), config);
             if (!result.isSuccess()) {
                 return false;
             }
@@ -1226,14 +1231,18 @@ public final class RoadNetworkManager {
         if (edgeId == null || edgeId.isBlank()) {
             return CenterlineEditResult.failure(CenterlineEditStatus.EDGE_NOT_FOUND);
         }
-        return mutateCenterlineGeometry(() -> {
-            CenterlineEditResult result =
-                RoadCenterlineEditor.splitAtLocalDistance(network, edgeId, localDistance);
-            if (result.isSuccess() && result.secondEdgeId() != null) {
-                setPrimarySelectedEdge(result.secondEdgeId());
-            }
-            return result;
-        });
+        // Crossing lineage applied inside splitAtLocalDistance — no observeReconcileInPlace.
+        return mutateNetworkWithKind(
+            () -> {
+                CenterlineEditResult result =
+                    RoadCenterlineEditor.splitAtLocalDistance(network, edgeId, localDistance);
+                if (result.isSuccess() && result.secondEdgeId() != null) {
+                    setPrimarySelectedEdge(result.secondEdgeId());
+                }
+                return result;
+            },
+            CenterlineEditResult::isSuccess,
+            RoadChangeKind.GEOMETRY);
     }
 
     public CenterlineEditResult filletCenterlineVertex(String edgeId, int vertexIndex, double radius) {
@@ -1250,11 +1259,12 @@ public final class RoadNetworkManager {
     }
 
     public CenterlineEditResult mergeSegmentsAtNode(String nodeId) {
+        // GENERAL (not GEOMETRY): length-preserving merge must not invalidate EDITED via
+        // edge-id geometry hash churn; Crossing lineage is applied inside mergeThroughNode.
         return mutateNetwork(
             () -> {
                 CenterlineEditResult result = RoadCenterlineEditor.mergeThroughNode(network, nodeId);
                 if (result.isSuccess() && result.mergedEdgeId() != null) {
-                    observeReconcileInPlace();
                     setPrimarySelectedEdge(result.mergedEdgeId());
                 }
                 return result;
@@ -1545,6 +1555,11 @@ public final class RoadNetworkManager {
 
         RoadTopologyRoadSplitter.RepairResult topologyRepair =
             RoadTopologyRoadSplitter.repairAfterAdopt(network);
+        if (topologyRepair.migrationFailed()) {
+            abortPendingNetworkEdit();
+            status.error(PlotI18n.tr("plugin.road.edit_crossing_migration_failed"));
+            return;
+        }
         reconcileCrossingsInPlace();
         IntersectionProbeResult crossingProbe =
             com.plot.plugin.road.crossing.RoadCrossingReconciler.probeRegistryCompleteness(network);
@@ -2138,6 +2153,11 @@ public final class RoadNetworkManager {
         RoadTopologyRoadSplitter.RepairResult result = road != null
             ? RoadTopologyRoadSplitter.repairRoad(network, road)
             : RoadTopologyRoadSplitter.repairAfterAdopt(network);
+        if (result.migrationFailed()) {
+            abortPendingNetworkEdit();
+            status.warning(PlotI18n.tr("plugin.road.edit_crossing_migration_failed"));
+            return result;
+        }
         commitNetworkChange();
         return result;
     }

@@ -108,6 +108,88 @@ public final class HorizontalAlignmentGeometry {
         return List.copyOf(segments);
     }
 
+    /**
+     * Extract a contiguous HA sub-chain {@code [rangeStart, rangeEnd]} as a new alignment.
+     * Tangents and circular arcs may be truncated; mid-spiral cuts refuse (not lossless).
+     */
+    public static Optional<RoadHorizontalAlignment> extractRange(
+            RoadHorizontalAlignment source,
+            double rangeStart,
+            double rangeEnd) {
+        if (source == null || source.isEmpty()) {
+            return Optional.empty();
+        }
+        double total = source.totalLength();
+        if (!Double.isFinite(rangeStart) || !Double.isFinite(rangeEnd)
+                || rangeStart < -EPSILON
+                || rangeEnd > total + EPSILON
+                || rangeEnd <= rangeStart + EPSILON) {
+            return Optional.empty();
+        }
+        double start = Math.max(0.0, Math.min(rangeStart, total));
+        double end = Math.max(0.0, Math.min(rangeEnd, total));
+        if (end <= start + EPSILON) {
+            return Optional.empty();
+        }
+        Optional<AlignmentPose> startPose = poseAt(source, start);
+        if (startPose.isEmpty()) {
+            return Optional.empty();
+        }
+        List<HorizontalAlignmentElement> extracted = new ArrayList<>();
+        double traversed = 0.0;
+        for (HorizontalAlignmentElement element : source.getElements()) {
+            double elementLength = element.getLength();
+            double elementStart = traversed;
+            double elementEnd = traversed + elementLength;
+            traversed = elementEnd;
+            if (elementEnd <= start + EPSILON || elementStart >= end - EPSILON) {
+                continue;
+            }
+            double clipStart = Math.max(start, elementStart);
+            double clipEnd = Math.min(end, elementEnd);
+            double clipLen = clipEnd - clipStart;
+            if (clipLen <= EPSILON) {
+                continue;
+            }
+            double withinStart = clipStart - elementStart;
+            Optional<HorizontalAlignmentElement> piece =
+                truncateElement(element, withinStart, clipLen);
+            if (piece.isEmpty()) {
+                return Optional.empty();
+            }
+            extracted.add(piece.get());
+        }
+        if (extracted.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(new RoadHorizontalAlignment(
+            new Vec2d(startPose.get().x(), startPose.get().y()),
+            startPose.get().bearingRadians(),
+            extracted));
+    }
+
+    private static Optional<HorizontalAlignmentElement> truncateElement(
+            HorizontalAlignmentElement element,
+            double withinStart,
+            double clipLength) {
+        if (element == null || clipLength <= EPSILON) {
+            return Optional.empty();
+        }
+        return switch (element.getType()) {
+            case TANGENT -> Optional.of(HorizontalAlignmentElement.tangent(clipLength));
+            case CIRCULAR_ARC -> Optional.of(HorizontalAlignmentElement.circularArc(
+                clipLength, element.getRadius(), element.getDirection()));
+            case SPIRAL -> {
+                // Clothoid factory assumes κ₀=0 at element start — mid-spiral refuse.
+                if (withinStart > EPSILON) {
+                    yield Optional.empty();
+                }
+                yield Optional.of(HorizontalAlignmentElement.spiral(
+                    clipLength, element.getSpiralParameterA()));
+            }
+        };
+    }
+
     public static double elementStartChainage(RoadHorizontalAlignment alignment, int elementIndex) {
         if (alignment == null || elementIndex < 0) {
             return -1.0;

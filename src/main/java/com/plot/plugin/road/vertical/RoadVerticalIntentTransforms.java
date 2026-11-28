@@ -154,11 +154,19 @@ public final class RoadVerticalIntentTransforms {
         return nodeIds;
     }
 
+    /** Canonical station at a topology node (matches splitStation domain). */
     private static OptionalDouble stationAtNode(RoadNetwork network, Road road, String nodeId) {
+        if (network == null || road == null || nodeId == null || nodeId.isBlank()) {
+            return OptionalDouble.empty();
+        }
         for (OrientedRoadSegment segment : RoadStationing.orientedSegments(network, road)) {
-            OptionalDouble station = segment.roadStationAtNode(nodeId);
-            if (station.isPresent()) {
-                return station;
+            OptionalDouble instance = segment.roadStationAtNode(nodeId);
+            if (instance.isEmpty()) {
+                continue;
+            }
+            double canonical = RoadStationing.toCanonicalChainage(network, road, instance.getAsDouble());
+            if (Double.isFinite(canonical)) {
+                return OptionalDouble.of(canonical);
             }
         }
         return OptionalDouble.empty();

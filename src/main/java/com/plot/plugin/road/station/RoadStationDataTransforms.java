@@ -2,7 +2,9 @@ package com.plot.plugin.road.station;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.alignment.HorizontalAlignmentChainOriginAligner;
+import com.plot.plugin.road.alignment.HorizontalAlignmentGeometry;
 import com.plot.plugin.road.alignment.HorizontalAlignmentPolylineFitter;
+import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -16,9 +18,11 @@ import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.model.section.StationCrossSection;
 import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
 import com.plot.plugin.road.model.section.VariableCrossSectionTransitionMode;
+import com.plot.plugin.road.vertical.EditedProfileGeometry;
 import com.plot.plugin.road.vertical.FlatVerticalIntent;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.ProfileSource;
+import com.plot.plugin.road.vertical.ResolvedProfileAuthority;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalIntentTransforms;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
@@ -102,6 +106,9 @@ public final class RoadStationDataTransforms {
         tail.setVariableCrossSections(nullIfEmpty(tailVcs));
         head.setStationFacilities(headFac);
         tail.setStationFacilities(tailFac);
+        // Stale signatures must not claim validity until final geometry rebind.
+        clearEditedSignaturePendingRebind(head);
+        clearEditedSignaturePendingRebind(tail);
 
         if (refitHorizontalAlignment) {
             head.setHorizontalAlignment(null);
@@ -146,9 +153,26 @@ public final class RoadStationDataTransforms {
             return StationMigrationResult.rejected("invalid split network args");
         }
         double totalLength = RoadStationing.canonicalLength(network, head);
+        RoadHorizontalAlignment sourceHa = head.getHorizontalAlignment();
+        Optional<RoadHorizontalAlignment> extractedHead = Optional.empty();
+        Optional<RoadHorizontalAlignment> extractedTail = Optional.empty();
+        boolean preferExtract = sourceHa != null
+            && !sourceHa.isEmpty()
+            && RoadStationing.domainMap(network, head).isReliable();
+        if (preferExtract) {
+            extractedHead = HorizontalAlignmentGeometry.extractRange(sourceHa, 0.0, splitStation);
+            extractedTail = HorizontalAlignmentGeometry.extractRange(
+                sourceHa, splitStation, sourceHa.totalLength());
+        }
         StationMigrationResult result = applyRoadSplit(head, tail, splitStation, totalLength, defaults);
         if (!result.isSuccess()) {
             return result;
+        }
+        if (preferExtract && extractedHead.isPresent() && extractedTail.isPresent()) {
+            // Prefer accurate HA interval extract over polyline refit (P02).
+            head.setHorizontalAlignment(extractedHead.get());
+            tail.setHorizontalAlignment(extractedTail.get());
+            result = StationMigrationResult.ok(false);
         }
         RoadVerticalIntentTransforms.partitionFlatIntentOnRoadSplit(network, head, tail, splitStation);
         return result;
@@ -193,6 +217,14 @@ public final class RoadStationDataTransforms {
         if (headHasVa != tailHasVa) {
             return StationMigrationResult.rejected("one-sided VA merge refused");
         }
+        // Valid EDITED vs AUTO cannot be unified losslessly — refuse (rebind happens after final HA).
+        ProfileSource headSrc = head.getEffectiveProfileSource();
+        ProfileSource tailSrc = tail.getEffectiveProfileSource();
+        if (headSrc != tailSrc
+                && (headSrc == ProfileSource.EDITED || tailSrc == ProfileSource.EDITED)
+                && (headHasVa || tailHasVa)) {
+            return StationMigrationResult.rejected("EDITED/AUTO profile merge refused");
+        }
 
         RoadVerticalAlignment mergedVa = mergeVerticalAlignments(
             head.getVerticalAlignment(), tail.getVerticalAlignment(), headLength);
@@ -234,7 +266,8 @@ public final class RoadStationDataTransforms {
         if (head.getCrossSection() != null) {
             target.setCrossSection(head.getCrossSection().copy());
         }
-        rebindEditedProfileSignature(target, head, tail);
+        // Do not copy stale geometry signatures — caller rebinds after final HA/topology.
+        clearEditedSignaturePendingRebind(target);
 
         if (refitHorizontalAlignment) {
             target.setHorizontalAlignment(null);
@@ -281,27 +314,137 @@ public final class RoadStationDataTransforms {
         return FlatMergeOutcome.ok(merged);
     }
 
-    private static void rebindEditedProfileSignature(Road target, Road head, Road tail) {
-        if (target == null) {
+    /** Clear binding until {@link #rebindEditedProfileAfterFinalGeometry} runs. */
+    private static void clearEditedSignaturePendingRebind(Road road) {
+        if (road == null) {
             return;
         }
-        boolean headEdited = head != null
-            && head.getStoredProfileSource() == ProfileSource.EDITED
-            && head.getEditedGeometrySignature() != 0;
-        boolean tailEdited = tail != null
-            && tail.getStoredProfileSource() == ProfileSource.EDITED
-            && tail.getEditedGeometrySignature() != 0;
-        if (!headEdited && !tailEdited) {
-            return;
+        if (road.getStoredProfileSource() == ProfileSource.EDITED
+                || road.getEffectiveProfileSource() == ProfileSource.EDITED) {
+            road.setProfileSource(ProfileSource.EDITED);
+            road.setEditedGeometrySignature(EditedProfileGeometry.UNBOUND_SIGNATURE);
         }
-        // Preserve EDITED; signature rebound after final geometry by caller when possible.
-        if (headEdited) {
-            target.setProfileSource(ProfileSource.EDITED);
-            target.setEditedGeometrySignature(head.getEditedGeometrySignature());
-        } else {
-            target.setProfileSource(ProfileSource.EDITED);
-            target.setEditedGeometrySignature(tail.getEditedGeometrySignature());
+    }
+
+    /**
+     * After final topology + HA: recompute geometry signature only when the source profile was
+     * truly valid EDITED and the migrated VA remains evaluable. Never activates stale EDITED.
+     */
+    public static boolean rebindEditedProfileAfterFinalGeometry(
+            RoadNetwork network,
+            Road road,
+            boolean sourceWasValidEdited) {
+        if (network == null || road == null) {
+            return true;
         }
+        if (!sourceWasValidEdited) {
+            // Keep archived curve; do not activate. Unbound signature → generation AUTO.
+            if (road.getStoredProfileSource() == ProfileSource.EDITED) {
+                road.setEditedGeometrySignature(EditedProfileGeometry.UNBOUND_SIGNATURE);
+            }
+            return true;
+        }
+        if (!VerticalAlignmentGeometry.isEvaluable(road.getVerticalAlignment())) {
+            return false;
+        }
+        road.setProfileSource(ProfileSource.EDITED);
+        road.setEditedGeometrySignature(EditedProfileGeometry.signature(network, road));
+        return ResolvedProfileAuthority.hasValidEditedProfile(network, road);
+    }
+
+    /**
+     * Physical pass of a VA sample: edge + geometry-local distance + expected elevation.
+     * Used to prove elev equivalence after HA refit ({@code s_old → (edge,d) → s_new}).
+     */
+    public record PhysicalStationAnchor(
+            String edgeId,
+            double localDistance,
+            double elevation) {
+    }
+
+    /** Capture VA PVI (and mid-span) anchors as physical edge-local passes. */
+    public static List<PhysicalStationAnchor> captureVaPhysicalAnchors(
+            RoadNetwork network,
+            Road road) {
+        if (network == null || road == null) {
+            return List.of();
+        }
+        RoadVerticalAlignment va = road.getVerticalAlignment();
+        if (va == null || va.isEmpty() || !RoadStationing.isStationable(network, road)) {
+            return List.of();
+        }
+        List<PhysicalStationAnchor> anchors = new ArrayList<>();
+        for (PointOfVerticalIntersection pvi : va.sortedPvis()) {
+            captureOneVaAnchor(network, road, pvi.getStation(), pvi.getElevation())
+                .ifPresent(anchors::add);
+        }
+        double length = RoadStationing.canonicalLength(network, road);
+        if (length > EPSILON * 2.0) {
+            double mid = length * 0.5;
+            OptionalDouble elev = VerticalAlignmentGeometry.elevationAt(va, mid);
+            if (elev.isPresent()) {
+                captureOneVaAnchor(network, road, mid, elev.getAsDouble()).ifPresent(anchors::add);
+            }
+        }
+        return anchors;
+    }
+
+    private static Optional<PhysicalStationAnchor> captureOneVaAnchor(
+            RoadNetwork network,
+            Road road,
+            double canonicalStation,
+            double elevation) {
+        Optional<SegmentStation> resolved = RoadStationing.resolve(network, road, canonicalStation);
+        if (resolved.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(new PhysicalStationAnchor(
+            resolved.get().segmentId(),
+            resolved.get().localDistance(),
+            elevation));
+    }
+
+    /**
+     * Verify migrated VA still matches elevations at captured physical passes.
+     * Anchors whose edge left this road are skipped (belong to the other split component).
+     */
+    public static boolean verifyVaPhysicalAnchors(
+            RoadNetwork network,
+            Road road,
+            List<PhysicalStationAnchor> anchors) {
+        if (anchors == null || anchors.isEmpty()) {
+            return true;
+        }
+        if (network == null || road == null) {
+            return false;
+        }
+        RoadVerticalAlignment va = road.getVerticalAlignment();
+        if (va == null || !VerticalAlignmentGeometry.isEvaluable(va)) {
+            return false;
+        }
+        Set<String> edgeIds = Set.copyOf(road.getOrderedSegmentIds());
+        int checked = 0;
+        for (PhysicalStationAnchor anchor : anchors) {
+            if (anchor == null || anchor.edgeId() == null || !edgeIds.contains(anchor.edgeId())) {
+                continue;
+            }
+            RoadEdge edge = network.getEdge(anchor.edgeId());
+            if (edge == null || !road.getId().equals(edge.getRoadId())) {
+                continue;
+            }
+            OptionalDouble station = RoadStationing.resolveCanonicalStationAtEdgeLocal(
+                network, road, anchor.edgeId(), anchor.localDistance());
+            if (station.isEmpty() || !Double.isFinite(station.getAsDouble())) {
+                return false;
+            }
+            OptionalDouble elev = VerticalAlignmentGeometry.elevationAt(va, station.getAsDouble());
+            if (elev.isEmpty() || Math.abs(elev.getAsDouble() - anchor.elevation()) > 1e-2) {
+                return false;
+            }
+            checked++;
+        }
+        return checked > 0 || anchors.stream().noneMatch(a ->
+            a != null && a.edgeId() != null && edgeIds.contains(a.edgeId()));
     }
 
     public static StationMigrationResult applyRoadMerge(RoadNetwork network, Road head, Road tail) {
@@ -516,9 +659,31 @@ public final class RoadStationDataTransforms {
             double rangeStart,
             double oldSegmentLength,
             double newSegmentLength) {
+        return rescaleVariableCrossSections(
+            source, roadDefault, totalLengthBefore, rangeStart, oldSegmentLength, newSegmentLength, null);
+    }
+
+    static RoadVariableCrossSections rescaleVariableCrossSections(
+            RoadVariableCrossSections source,
+            RoadCrossSection roadDefault,
+            double totalLengthBefore,
+            double rangeStart,
+            double oldSegmentLength,
+            double newSegmentLength,
+            RoadSystemConfig defaults) {
+        if (source == null || source.isEmpty()) {
+            return source;
+        }
         RoadCrossSection defaultSection = roadDefault != null ? roadDefault : new RoadCrossSection();
+        VariableCrossSectionTransitionMode mode = source.getTransitionMode();
+        // SMOOTH: never rebuild via STEP intervals — remap key stations and verify samples.
+        if (mode == VariableCrossSectionTransitionMode.SMOOTH) {
+            return rescaleSmoothVariableCrossSections(
+                source, defaultSection, totalLengthBefore, rangeStart,
+                oldSegmentLength, newSegmentLength, defaults);
+        }
         List<Interval> intervals = buildIntervals(
-            source != null ? source.sortedStations() : List.of(),
+            source.sortedStations(),
             defaultSection,
             totalLengthBefore);
         List<Interval> remapped = new ArrayList<>(intervals.size());
@@ -532,10 +697,52 @@ public final class RoadStationDataTransforms {
             }
         }
         remapped = mergeAdjacentIntervals(remapped);
-        VariableCrossSectionTransitionMode mode = source != null
-            ? source.getTransitionMode()
-            : VariableCrossSectionTransitionMode.STEP;
         return intervalsToVariableCrossSections(remapped, defaultSection, mode);
+    }
+
+    private static RoadVariableCrossSections rescaleSmoothVariableCrossSections(
+            RoadVariableCrossSections source,
+            RoadCrossSection defaultSection,
+            double totalLengthBefore,
+            double rangeStart,
+            double oldSegmentLength,
+            double newSegmentLength,
+            RoadSystemConfig defaults) {
+        RoadSystemConfig config = defaults != null ? defaults : new RoadSystemConfig("plot");
+        List<StationCrossSection> remapped = new ArrayList<>();
+        for (StationCrossSection entry : source.sortedStations()) {
+            double newStation = remapStationAfterSegmentEdit(
+                entry.getStation(), rangeStart, oldSegmentLength, newSegmentLength);
+            remapped.add(StationCrossSection.at(newStation, entry.getCrossSection().copy()));
+        }
+        remapped.sort(Comparator.comparingDouble(StationCrossSection::getStation));
+        RoadVariableCrossSections result =
+            new RoadVariableCrossSections(remapped, VariableCrossSectionTransitionMode.SMOOTH);
+        if (!result.isValid()) {
+            throw new StationMigrationRefuseException("SMOOTH rescale invalid");
+        }
+        double rangeEnd = rangeStart + oldSegmentLength;
+        double step = Math.max(oldSegmentLength / 32.0, 0.5);
+        for (double s = rangeStart; s <= rangeEnd + EPSILON; s += step) {
+            ResolvedCrossSection before = VariableCrossSectionResolver.resolve(
+                defaultSection,
+                source.sortedStations(),
+                VariableCrossSectionTransitionMode.SMOOTH,
+                Math.min(s, rangeEnd),
+                config);
+            double afterStation = remapStationAfterSegmentEdit(
+                Math.min(s, rangeEnd), rangeStart, oldSegmentLength, newSegmentLength);
+            ResolvedCrossSection after = VariableCrossSectionResolver.resolve(
+                defaultSection,
+                result.sortedStations(),
+                VariableCrossSectionTransitionMode.SMOOTH,
+                afterStation,
+                config);
+            if (!before.displayEquals(after)) {
+                throw new StationMigrationRefuseException("SMOOTH rescale displayEquals failed");
+            }
+        }
+        return result;
     }
 
     static RoadStationFacilities rescaleStationFacilities(
@@ -582,6 +789,17 @@ public final class RoadStationDataTransforms {
             double totalSourceLength,
             double rangeStart,
             double rangeEnd) {
+        return applyStationRangeExtract(
+            source, target, totalSourceLength, rangeStart, rangeEnd, null);
+    }
+
+    public static StationMigrationResult applyStationRangeExtract(
+            Road source,
+            Road target,
+            double totalSourceLength,
+            double rangeStart,
+            double rangeEnd,
+            RoadSystemConfig defaults) {
         if (source == null || target == null || totalSourceLength <= EPSILON) {
             return StationMigrationResult.rejected("invalid extract args");
         }
@@ -609,7 +827,8 @@ public final class RoadStationDataTransforms {
                 totalSourceLength,
                 rangeStart,
                 rangeEnd,
-                stationOffset);
+                stationOffset,
+                defaults);
         } catch (StationMigrationRefuseException e) {
             return StationMigrationResult.rejected(e.getMessage());
         }
@@ -719,6 +938,14 @@ public final class RoadStationDataTransforms {
 
         public StationMigrationResult applyRangeTo(
                 Road target, double totalSourceLength, StationRange range) {
+            return applyRangeTo(target, totalSourceLength, range, null);
+        }
+
+        public StationMigrationResult applyRangeTo(
+                Road target,
+                double totalSourceLength,
+                StationRange range,
+                RoadSystemConfig defaults) {
             if (target == null || !range.isValid()) {
                 return StationMigrationResult.rejected("invalid apply range");
             }
@@ -728,7 +955,7 @@ public final class RoadStationDataTransforms {
             scratch.setStationFacilities(stationFacilities);
             scratch.setCrossSection(target.getCrossSection());
             return applyStationRangeExtract(
-                scratch, target, totalSourceLength, range.start(), range.end());
+                scratch, target, totalSourceLength, range.start(), range.end(), defaults);
         }
 
         public boolean hasPhase2Data() {
@@ -879,6 +1106,7 @@ public final class RoadStationDataTransforms {
     }
 
     /** @deprecated prefer {@link #extractTailVerticalAlignment(RoadVerticalAlignment, double, double)} */
+    @Deprecated
     static RoadVerticalAlignment extractTailVerticalAlignment(
             RoadVerticalAlignment source,
             double splitStation) {

@@ -628,6 +628,9 @@ public class RoadNetwork {
         List<OrientedRoadSegment> designWalk = RoadStationing.orientedSegments(this, road);
         String priorEntryNode = road.getDesignEntryNodeId();
         String priorEntryEdge = road.getDesignEntryEdgeId();
+        boolean sourceEditedValid =
+            com.plot.plugin.road.vertical.ResolvedProfileAuthority.hasValidEditedProfile(this, road);
+        var vaAnchors = RoadStationDataTransforms.captureVaPhysicalAnchors(this, road);
         var crossingCapture = com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.captureForRoads(
             this, Set.of(roadId));
         Road newRoad = createRoad();
@@ -639,9 +642,6 @@ public class RoadNetwork {
         if (!migration.isSuccess()) {
             roads.remove(newRoad.getId());
             return null;
-        }
-        if (migration.requiresHaRefit()) {
-            // Domain-map reliability checked after topology + refit below.
         }
         for (String segmentId : tailIds) {
             assignEdgeToRoad(segmentId, newRoad.getId());
@@ -662,10 +662,26 @@ public class RoadNetwork {
                 crossingMigrationFailure = true;
                 return null;
             }
-            if (!stationDomainReliable(road) || !stationDomainReliable(newRoad)) {
+        }
+        // Extracted or refit HA must stay domain-reliable on both components.
+        if (!stationDomainReliable(road) || !stationDomainReliable(newRoad)) {
+            crossingMigrationFailure = true;
+            return null;
+        }
+        // Physical elev equivalence after final HA — isReliable alone is not enough.
+        if (!vaAnchors.isEmpty()) {
+            if (!RoadStationDataTransforms.verifyVaPhysicalAnchors(this, road, vaAnchors)
+                    || !RoadStationDataTransforms.verifyVaPhysicalAnchors(this, newRoad, vaAnchors)) {
                 crossingMigrationFailure = true;
                 return null;
             }
+        }
+        if (!RoadStationDataTransforms.rebindEditedProfileAfterFinalGeometry(
+                this, road, sourceEditedValid)
+                || !RoadStationDataTransforms.rebindEditedProfileAfterFinalGeometry(
+                this, newRoad, sourceEditedValid)) {
+            crossingMigrationFailure = true;
+            return null;
         }
         var apply = com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.reapply(
             this, crossingCapture);
@@ -882,6 +898,34 @@ public class RoadNetwork {
 
         double headLengthBefore = RoadStationing.canonicalLength(this, head);
         double tailLengthBefore = RoadStationing.canonicalLength(this, tail);
+        boolean headValidEdited = com.plot.plugin.road.vertical.ResolvedProfileAuthority
+            .hasValidEditedProfile(this, head);
+        boolean tailValidEdited = com.plot.plugin.road.vertical.ResolvedProfileAuthority
+            .hasValidEditedProfile(this, tail);
+        boolean wasValidEdited = appendTail
+            ? (headValidEdited || tailValidEdited)
+            : (tailValidEdited || headValidEdited);
+        // Both sides valid EDITED → keep; one-sided EDITED+AUTO already refused in applyRoadMerge.
+        if ((headValidEdited || tailValidEdited) && !(headValidEdited && tailValidEdited)) {
+            // One valid EDITED and the other not — only OK if the other has no VA (already refused)
+            // or both are EDITED sources. If only one valid, require both sources EDITED with VA.
+            boolean bothEditedSource =
+                head.getEffectiveProfileSource() == com.plot.plugin.road.vertical.ProfileSource.EDITED
+                    && tail.getEffectiveProfileSource()
+                        == com.plot.plugin.road.vertical.ProfileSource.EDITED;
+            if (!bothEditedSource) {
+                wasValidEdited = headValidEdited && tailValidEdited;
+            }
+        }
+        var headAnchors = RoadStationDataTransforms.captureVaPhysicalAnchors(this, head);
+        var tailAnchors = RoadStationDataTransforms.captureVaPhysicalAnchors(this, tail);
+        // Capture splice origin before topology mutate for LOOP seam (P03).
+        Vec2d spliceOrigin = null;
+        if (appendTail) {
+            spliceOrigin = RoadStationing.chainOrigin(this, head).orElse(null);
+        } else {
+            spliceOrigin = RoadStationing.chainOrigin(this, tail).orElse(null);
+        }
         var crossingCapture = com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.captureForRoads(
             this, Set.of(headRoadId, tailRoadId));
 
@@ -907,23 +951,41 @@ public class RoadNetwork {
         head.reorderSegments(mergedSegments);
         roads.remove(tailRoadId);
         RoadTopologyInvariantValidator.syncStorageOrderIfMaintainable(this, head);
-        boolean becameLoop = RoadTopologyRoadSplitter.promoteClosedRoadToLoop(this, head);
+
+        bindDesignEntryFromWalk(head, mergedSegments, entryWalk, priorEntryEdge, priorEntryNode);
+
+        // Promote with splice-origin seam — never let min-XY override the join origin (P03).
+        boolean becameLoop = spliceOrigin != null
+            ? RoadTopologyRoadSplitter.promoteClosedRoadToLoop(
+                this, head, List.of(spliceOrigin.copy()))
+            : RoadTopologyRoadSplitter.promoteClosedRoadToLoop(this, head);
         if (!becameLoop) {
             RoadTopologyRoadSplitter.demoteOpenLoopToLinear(this, head);
         }
 
-        bindDesignEntryFromWalk(head, mergedSegments, entryWalk, priorEntryEdge, priorEntryNode);
-        if (becameLoop && head.getLoopSeam() == null) {
-            // Default seam must match final splice origin — no min-XY rebind of design direction.
-            head.setLoopSeam(RoadLoopSeamService.computeDefault(this, head));
-        }
-
         if (migration.requiresHaRefit()) {
             RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(this, head);
-            if (head.getHorizontalAlignment() == null || !stationDomainReliable(head)) {
+            if (head.getHorizontalAlignment() == null) {
                 crossingMigrationFailure = true;
                 return null;
             }
+        }
+        if (!stationDomainReliable(head)) {
+            crossingMigrationFailure = true;
+            return null;
+        }
+        List<RoadStationDataTransforms.PhysicalStationAnchor> mergedAnchors = new ArrayList<>();
+        mergedAnchors.addAll(headAnchors);
+        mergedAnchors.addAll(tailAnchors);
+        if (!mergedAnchors.isEmpty()
+                && !RoadStationDataTransforms.verifyVaPhysicalAnchors(this, head, mergedAnchors)) {
+            crossingMigrationFailure = true;
+            return null;
+        }
+        if (!RoadStationDataTransforms.rebindEditedProfileAfterFinalGeometry(
+                this, head, wasValidEdited)) {
+            crossingMigrationFailure = true;
+            return null;
         }
         var apply = com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.reapply(
             this, crossingCapture);

@@ -17,12 +17,14 @@ import com.plot.plugin.road.model.RoadLoopSeam;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.RoadSegmentOrdering;
+import com.plot.plugin.road.model.RoadTopologyMode;
 import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.station.CenterlineEditOperation;
 import com.plot.plugin.road.station.CenterlineEditStationPolicy;
 import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadDesignDirectionAuthority;
+import com.plot.plugin.road.station.RoadLoopSeamService;
 import com.plot.plugin.road.station.RoadStationDataTransforms.SegmentGeometrySnapshot;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.station.RoadStationMirroring;
@@ -105,6 +107,13 @@ public final class RoadCenterlineEditor {
         Optional<OrientedRoadSegment> priorOriented = roadBefore != null
             ? RoadStationing.orientedSegment(network, roadBefore, edgeId)
             : Optional.empty();
+        Set<String> roadIds = edge.getRoadId() != null ? Set.of(edge.getRoadId()) : Set.of();
+        RoadCrossingOwnershipMigrator.CaptureResult crossingCapture = roadIds.isEmpty()
+            ? new RoadCrossingOwnershipMigrator.CaptureResult(List.of(), false)
+            : RoadCrossingOwnershipMigrator.captureForRoads(network, roadIds);
+        if (crossingCapture.hadUnresolved()) {
+            return CenterlineEditResult.failure(CenterlineEditStatus.CROSSING_MIGRATION_FAILED);
+        }
 
         // Local-arc split: keep segment index; never re-pick nearest segment by plane coords.
         Optional<RoadGraphEdits.SplitResult> split = RoadGraphEdits.of(network)
@@ -115,6 +124,20 @@ public final class RoadCenterlineEditor {
         RoadGraphEdits.SplitResult result = split.get();
         migrateLineageAfterEdgeSplit(
             network, result, priorEntryEdge, priorEntryNode, priorSeam, priorOriented.orElse(null));
+        if (!crossingCapture.isEmpty()) {
+            RoadCrossingOwnershipMigrator.CaptureResult remapped =
+                RoadCrossingOwnershipMigrator.remapAfterEdgeSplit(
+                    crossingCapture,
+                    result.oldEdgeId(),
+                    result.firstEdgeId(),
+                    result.secondEdgeId(),
+                    result.splitGeometryLocal());
+            RoadCrossingOwnershipMigrator.ApplyResult apply =
+                RoadCrossingOwnershipMigrator.reapply(network, remapped);
+            if (!apply.complete()) {
+                return CenterlineEditResult.failure(CenterlineEditStatus.CROSSING_MIGRATION_FAILED);
+            }
+        }
         return finishEdit(
             network,
             result.firstEdgeId(),
@@ -243,8 +266,21 @@ public final class RoadCenterlineEditor {
         String priorEntryEdge = roadBefore != null ? roadBefore.getDesignEntryEdgeId() : null;
         String priorEntryNode = roadBefore != null ? roadBefore.getDesignEntryNodeId() : null;
         RoadLoopSeam priorSeam = roadBefore != null ? roadBefore.getLoopSeam() : null;
-        // Through-node is the design entry: must rebuild onto a surviving endpoint or refuse.
-        if (priorEntryNode != null && priorEntryNode.equals(nodeId)) {
+        // LOOP virtual seam at the deleted design-entry node: convert to explicit seam on merge
+        // (do not shift zero by moving entry to the far endpoint).
+        boolean convertVirtualSeam = roadBefore != null
+            && roadBefore.getTopologyMode() == RoadTopologyMode.LOOP
+            && priorEntryNode != null
+            && priorEntryNode.equals(nodeId)
+            && (priorSeam == null || !RoadLoopSeamService.isSeamResolvable(network, roadBefore));
+        Vec2d virtualSeamOrigin = null;
+        if (convertVirtualSeam) {
+            if (through.getPosition() == null) {
+                return CenterlineEditResult.failure(CenterlineEditStatus.MERGE_FAILED);
+            }
+            virtualSeamOrigin = through.getPosition().copy();
+            // Keep priorEntryNode as deleted id only for lineage; seam carries physical zero.
+        } else if (priorEntryNode != null && priorEntryNode.equals(nodeId)) {
             String rebuildNode = survivingEndpointForDeletedEntry(
                 previewA, previewB, nodeId, priorEntryEdge);
             if (rebuildNode == null) {
@@ -253,17 +289,78 @@ public final class RoadCenterlineEditor {
             priorEntryNode = rebuildNode;
         }
 
+        Set<String> roadIds = roadId != null ? Set.of(roadId) : Set.of();
+        RoadCrossingOwnershipMigrator.CaptureResult crossingCapture = roadIds.isEmpty()
+            ? new RoadCrossingOwnershipMigrator.CaptureResult(List.of(), false)
+            : RoadCrossingOwnershipMigrator.captureForRoads(network, roadIds);
+        if (crossingCapture.hadUnresolved()) {
+            return CenterlineEditResult.failure(CenterlineEditStatus.CROSSING_MIGRATION_FAILED);
+        }
+
         Optional<RoadGraphEdits.MergeResult> merged = RoadGraphEdits.of(network).mergeThroughNode(nodeId);
         if (merged.isEmpty()) {
             return CenterlineEditResult.failure(CenterlineEditStatus.MERGE_FAILED);
         }
         RoadGraphEdits.MergeResult result = merged.get();
         migrateLineageAfterEdgeMerge(network, result, priorEntryEdge, priorEntryNode, priorSeam);
+        if (virtualSeamOrigin != null) {
+            if (!placeExplicitSeamAtMergeJoin(network, result, virtualSeamOrigin)) {
+                return CenterlineEditResult.failure(CenterlineEditStatus.MERGE_FAILED);
+            }
+        }
+        if (!crossingCapture.isEmpty()) {
+            RoadCrossingOwnershipMigrator.CaptureResult remapped =
+                RoadCrossingOwnershipMigrator.remapAfterEdgeMerge(
+                    crossingCapture,
+                    result.firstOldEdgeId(),
+                    result.secondOldEdgeId(),
+                    result.mergedEdgeId(),
+                    result.secondLocalOffset(),
+                    result.firstOldLength(),
+                    result.secondOldLength(),
+                    result.firstReversed(),
+                    result.secondReversed());
+            RoadCrossingOwnershipMigrator.ApplyResult apply =
+                RoadCrossingOwnershipMigrator.reapply(network, remapped);
+            if (!apply.complete()) {
+                return CenterlineEditResult.failure(CenterlineEditStatus.CROSSING_MIGRATION_FAILED);
+            }
+        }
         return finishEdit(
             network,
             result.mergedEdgeId(),
             CenterlineEditResult.merged(result.mergedEdgeId()),
             CenterlineEditOperation.MERGE_EDGE);
+    }
+
+    /**
+     * Place an explicit LOOP seam at the former through-node (join) on the merged edge so the
+     * physical station zero is preserved when the virtual design-entry node is deleted.
+     */
+    private static boolean placeExplicitSeamAtMergeJoin(
+            RoadNetwork network,
+            RoadGraphEdits.MergeResult merge,
+            Vec2d origin) {
+        if (network == null || merge == null || origin == null || merge.mergedEdgeId() == null) {
+            return false;
+        }
+        RoadEdge merged = network.getEdge(merge.mergedEdgeId());
+        if (merged == null || merged.getRoadId() == null || merged.getLength() <= 1e-9) {
+            return false;
+        }
+        Road road = network.getRoad(merged.getRoadId());
+        if (road == null) {
+            return false;
+        }
+        double joinLocal = Math.max(0.0, Math.min(merged.getLength(), merge.secondLocalOffset()));
+        double frac = joinLocal / merged.getLength();
+        road.setLoopSeam(RoadLoopSeam.onSegment(origin.copy(), merged.getId(), frac));
+        road.setDesignEntryEdgeId(merged.getId());
+        // Prefer a surviving endpoint as topological entry; seam defines chainage zero.
+        if (merged.getStartNodeId() != null) {
+            road.setDesignEntryNodeId(merged.getStartNodeId());
+        }
+        return RoadLoopSeamService.isSeamResolvable(network, road);
     }
 
     /**

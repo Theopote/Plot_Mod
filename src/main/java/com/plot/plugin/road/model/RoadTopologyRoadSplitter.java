@@ -29,9 +29,21 @@ public final class RoadTopologyRoadSplitter {
     private RoadTopologyRoadSplitter() {
     }
 
-    public record RepairResult(int sourceRoadsRepaired, int newRoadsCreated, int loopsPromoted) {
+    public record RepairResult(
+            int sourceRoadsRepaired,
+            int newRoadsCreated,
+            int loopsPromoted,
+            boolean migrationFailed) {
         public RepairResult(int sourceRoadsRepaired, int newRoadsCreated) {
-            this(sourceRoadsRepaired, newRoadsCreated, 0);
+            this(sourceRoadsRepaired, newRoadsCreated, 0, false);
+        }
+
+        public RepairResult(int sourceRoadsRepaired, int newRoadsCreated, int loopsPromoted) {
+            this(sourceRoadsRepaired, newRoadsCreated, loopsPromoted, false);
+        }
+
+        public static RepairResult failed() {
+            return new RepairResult(0, 0, 0, true);
         }
     }
 
@@ -59,6 +71,9 @@ public final class RoadTopologyRoadSplitter {
                     continue;
                 }
                 int disconnectedCreated = repairDisconnectedRoad(network, road);
+                if (disconnectedCreated < 0) {
+                    return RepairResult.failed();
+                }
                 if (disconnectedCreated > 0) {
                     changed = true;
                     sourceRoadsRepaired++;
@@ -73,6 +88,9 @@ public final class RoadTopologyRoadSplitter {
                     continue;
                 }
                 int created = splitBranchingRoad(network, road);
+                if (created < 0) {
+                    return RepairResult.failed();
+                }
                 if (created > 0) {
                     changed = true;
                     sourceRoadsRepaired++;
@@ -107,6 +125,9 @@ public final class RoadTopologyRoadSplitter {
         int newRoadsCreated = 0;
 
         int disconnectedCreated = repairDisconnectedRoad(network, current);
+        if (disconnectedCreated < 0) {
+            return RepairResult.failed();
+        }
         if (disconnectedCreated > 0) {
             sourceRoadsRepaired++;
             newRoadsCreated += disconnectedCreated;
@@ -115,6 +136,9 @@ public final class RoadTopologyRoadSplitter {
         current = network.getRoad(road.getId());
         if (current != null) {
             int branchingCreated = splitBranchingRoad(network, current);
+            if (branchingCreated < 0) {
+                return RepairResult.failed();
+            }
             if (branchingCreated > 0) {
                 sourceRoadsRepaired++;
                 newRoadsCreated += branchingCreated;
@@ -126,9 +150,17 @@ public final class RoadTopologyRoadSplitter {
     }
 
     private static void promoteToLoop(RoadNetwork network, Road road) {
+        promoteToLoop(network, road, null);
+    }
+
+    private static void promoteToLoop(
+            RoadNetwork network,
+            Road road,
+            java.util.List<com.plot.api.geometry.Vec2d> spliceOriginPoints) {
         road.setTopologyMode(RoadTopologyMode.LOOP);
         if (road.getLoopSeam() == null) {
-            road.setLoopSeam(com.plot.plugin.road.station.RoadLoopSeamService.computeDefault(network, road));
+            road.setLoopSeam(com.plot.plugin.road.station.RoadLoopSeamService.computeDefault(
+                network, road, spliceOriginPoints));
         }
     }
 
@@ -157,6 +189,17 @@ public final class RoadTopologyRoadSplitter {
 
     /** Promote a real closed ring (or single self-loop edge) to LOOP with default seam. */
     public static boolean promoteClosedRoadToLoop(RoadNetwork network, Road road) {
+        return promoteClosedRoadToLoop(network, road, null);
+    }
+
+    /**
+     * Promote closed ring to LOOP. When {@code spliceOriginPoints} is non-empty, the default seam
+     * is projected from that splice origin instead of min-XY.
+     */
+    public static boolean promoteClosedRoadToLoop(
+            RoadNetwork network,
+            Road road,
+            java.util.List<com.plot.api.geometry.Vec2d> spliceOriginPoints) {
         if (network == null || road == null) {
             return false;
         }
@@ -166,19 +209,23 @@ public final class RoadTopologyRoadSplitter {
         }
         Subgraph subgraph = Subgraph.build(network, current);
         if (subgraph.edgeIds.size() == 1) {
-            return promoteSingleSelfLoop(network, current, subgraph);
+            return promoteSingleSelfLoop(network, current, subgraph, spliceOriginPoints);
         }
         if (subgraph.componentCount == 1
                 && !subgraph.hasBranching
                 && subgraph.endpointCount == 0
                 && !subgraph.edgeIds.isEmpty()) {
-            promoteToLoop(network, current);
+            promoteToLoop(network, current, spliceOriginPoints);
             return true;
         }
         return false;
     }
 
-    private static boolean promoteSingleSelfLoop(RoadNetwork network, Road road, Subgraph subgraph) {
+    private static boolean promoteSingleSelfLoop(
+            RoadNetwork network,
+            Road road,
+            Subgraph subgraph,
+            java.util.List<com.plot.api.geometry.Vec2d> spliceOriginPoints) {
         if (subgraph.edgeIds.size() != 1 || subgraph.hasBranching || subgraph.componentCount != 1) {
             return false;
         }
@@ -187,8 +234,12 @@ public final class RoadTopologyRoadSplitter {
         if (edge == null || !edge.getStartNodeId().equals(edge.getEndNodeId())) {
             return false;
         }
-        promoteToLoop(network, road);
+        promoteToLoop(network, road, spliceOriginPoints);
         return true;
+    }
+
+    private static boolean promoteSingleSelfLoop(RoadNetwork network, Road road, Subgraph subgraph) {
+        return promoteSingleSelfLoop(network, road, subgraph, null);
     }
 
     private static int promoteClosedLoopsToLoopMode(RoadNetwork network) {
@@ -242,7 +293,7 @@ public final class RoadTopologyRoadSplitter {
     }
 
     /**
-     * @return 新创建的 Road 数量
+     * @return 新创建的 Road 数量；迁移失败返回 -1
      */
     static int splitBranchingRoad(RoadNetwork network, Road road) {
         Subgraph subgraph = Subgraph.build(network, road);
@@ -273,7 +324,7 @@ public final class RoadTopologyRoadSplitter {
     /**
      * 将 {@code components} 拆到多条 Road：首项保留在 {@code road}，其余新建。
      *
-     * @return 新创建的 Road 数量
+     * @return 新创建的 Road 数量；任一分量迁移失败返回 -1（不得清空后继续）
      */
     private static int distributeComponents(
             RoadNetwork network,
@@ -283,14 +334,16 @@ public final class RoadTopologyRoadSplitter {
             int branchIndexStart) {
         StationDataSnapshot snapshot = StationDataSnapshot.capture(road);
         VerticalIntentSnapshot intentSnapshot = VerticalIntentSnapshot.capture(road);
+        boolean sourceEditedValid =
+            com.plot.plugin.road.vertical.ResolvedProfileAuthority.hasValidEditedProfile(network, road);
         double totalLength = RoadStationing.canonicalLength(network, road);
         boolean mapStationData = snapshot.hasPhase2Data() && totalLength > 1e-6;
 
-        List<StationRange> ranges = new ArrayList<>(components.size());
+        List<List<StationRange>> componentRanges = new ArrayList<>(components.size());
         for (Set<String> component : components) {
-            ranges.add(mapStationData
-                ? RoadStationDataTransforms.computeComponentStationRange(network, road, component)
-                : StationRange.invalid());
+            componentRanges.add(mapStationData
+                ? RoadStationDataTransforms.computeComponentStationRanges(network, road, component)
+                : List.of());
         }
 
         int keepIndex = components.indexOf(keepComponent);
@@ -298,10 +351,20 @@ public final class RoadTopologyRoadSplitter {
             keepIndex = 0;
         }
         if (mapStationData) {
-            StationRange keepRange = ranges.get(keepIndex);
-            if (keepRange.isValid()) {
-                snapshot.applyRangeTo(road, totalLength, keepRange);
+            keepIndex = pickExtractableKeepIndex(
+                components, componentRanges, snapshot, totalLength, keepIndex);
+            List<StationRange> keepRuns = componentRanges.get(keepIndex);
+            if (keepRuns.size() > 1) {
+                // Non-contiguous station coverage cannot be extracted losslessly.
+                return -1;
+            }
+            if (keepRuns.size() == 1) {
+                var keepResult = snapshot.applyRangeTo(road, totalLength, keepRuns.getFirst());
+                if (!keepResult.isSuccess()) {
+                    return -1;
+                }
             } else {
+                // No walk coverage on this component — clear rather than keep stale full-road data.
                 clearStationEngineeringData(road);
             }
             if (snapshot.hadHorizontalAlignment()) {
@@ -323,10 +386,17 @@ public final class RoadTopologyRoadSplitter {
             splitRoad.setTopologyMode(RoadTopologyMode.LINEAR);
             applyBranchName(road, splitRoad, branchIndex++);
             if (mapStationData) {
-                StationRange range = ranges.get(i);
-                if (range.isValid()) {
-                    snapshot.applyRangeTo(splitRoad, totalLength, range);
+                List<StationRange> runs = componentRanges.get(i);
+                if (runs.size() > 1) {
+                    return -1;
                 }
+                if (runs.size() == 1) {
+                    var branchResult = snapshot.applyRangeTo(splitRoad, totalLength, runs.getFirst());
+                    if (!branchResult.isSuccess()) {
+                        return -1;
+                    }
+                }
+                // Empty runs: leave null station data (no coverage in authority walk).
                 if (snapshot.hadHorizontalAlignment()) {
                     splitRoad.setHorizontalAlignment(null);
                 }
@@ -339,8 +409,26 @@ public final class RoadTopologyRoadSplitter {
 
         if (mapStationData && snapshot.hadHorizontalAlignment()) {
             RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(network, road);
+            if (road.getHorizontalAlignment() == null) {
+                return -1;
+            }
             for (Road splitRoad : splitRoads) {
                 RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(network, splitRoad);
+                if (splitRoad.getHorizontalAlignment() == null) {
+                    return -1;
+                }
+            }
+        }
+        if (mapStationData) {
+            if (!RoadStationDataTransforms.rebindEditedProfileAfterFinalGeometry(
+                    network, road, sourceEditedValid)) {
+                return -1;
+            }
+            for (Road splitRoad : splitRoads) {
+                if (!RoadStationDataTransforms.rebindEditedProfileAfterFinalGeometry(
+                        network, splitRoad, sourceEditedValid)) {
+                    return -1;
+                }
             }
         }
         return created;
@@ -353,6 +441,42 @@ public final class RoadTopologyRoadSplitter {
         road.setVerticalAlignment(null);
         road.setVariableCrossSections(null);
         road.setStationFacilities(null);
+    }
+
+    /**
+     * Prefer the caller-chosen keep when its station extract succeeds; otherwise the first
+     * component that can extract losslessly. Empty coverage is allowed (clears data).
+     */
+    private static int pickExtractableKeepIndex(
+            List<Set<String>> components,
+            List<List<StationRange>> componentRanges,
+            StationDataSnapshot snapshot,
+            double totalLength,
+            int preferredIndex) {
+        if (componentExtractable(snapshot, totalLength, componentRanges.get(preferredIndex))) {
+            return preferredIndex;
+        }
+        for (int i = 0; i < components.size(); i++) {
+            if (i != preferredIndex
+                    && componentExtractable(snapshot, totalLength, componentRanges.get(i))) {
+                return i;
+            }
+        }
+        return preferredIndex;
+    }
+
+    private static boolean componentExtractable(
+            StationDataSnapshot snapshot,
+            double totalLength,
+            List<StationRange> runs) {
+        if (runs.size() > 1) {
+            return false;
+        }
+        if (runs.isEmpty()) {
+            return true;
+        }
+        Road scratch = new Road("extract-probe");
+        return snapshot.applyRangeTo(scratch, totalLength, runs.getFirst()).isSuccess();
     }
 
     private static void applyBranchName(Road parent, Road splitRoad, int branchIndex) {

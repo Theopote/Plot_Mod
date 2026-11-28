@@ -3,12 +3,14 @@ package com.plot.plugin.road.station;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.alignment.HorizontalAlignmentElement;
+import com.plot.plugin.road.alignment.HorizontalAlignmentGeometry;
 import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
 import com.plot.plugin.road.alignment.TurnDirection;
 import com.plot.plugin.road.centerline.RoadCenterlineEditor;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.manager.RoadProjectStatus;
 import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadLoopSeam;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -23,8 +25,10 @@ import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.model.section.StationCrossSection;
 import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
 import com.plot.plugin.road.model.section.VariableCrossSectionTransitionMode;
+import com.plot.plugin.road.vertical.EditedProfileGeometry;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.ProfileSource;
+import com.plot.plugin.road.vertical.ResolvedProfileAuthority;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 import com.plot.plugin.road.vertical.VerticalControlPointConstraint;
@@ -205,15 +209,24 @@ class Phase244StationMigrationInvariantTest {
         head.setVariableCrossSections(smooth);
         String beforeJson = head.getVariableCrossSections().toString()
             + "|" + head.getVerticalAlignment();
+        RoadSystemConfig cfg = new RoadSystemConfig("phase244");
         StationMigrationResult result = RoadStationDataTransforms.applyRoadSplit(
-            head, t, 40.0, 100.0, new RoadSystemConfig("phase244"));
-        assertTrue(result.isSuccess() || !result.isSuccess());
+            head, t, 40.0, 100.0, cfg);
         if (result.isSuccess()) {
             assertEquals(VariableCrossSectionTransitionMode.SMOOTH,
                 head.getVariableCrossSections().getTransitionMode());
             assertNotNull(t.getVariableCrossSections());
             assertEquals(VariableCrossSectionTransitionMode.SMOOTH,
                 t.getVariableCrossSections().getTransitionMode());
+            var atHead = VariableCrossSectionResolver.resolve(
+                head.getCrossSection(), head.getVariableCrossSections().sortedStations(),
+                VariableCrossSectionTransitionMode.SMOOTH, 20.0, cfg);
+            var atTail = VariableCrossSectionResolver.resolve(
+                t.getCrossSection() != null ? t.getCrossSection() : head.getCrossSection(),
+                t.getVariableCrossSections().sortedStations(),
+                VariableCrossSectionTransitionMode.SMOOTH, 20.0, cfg);
+            assertTrue(atHead.carriagewayWidth > 0);
+            assertTrue(atTail.carriagewayWidth > 0);
         } else {
             assertEquals(beforeJson,
                 head.getVariableCrossSections().toString() + "|" + head.getVerticalAlignment());
@@ -292,26 +305,35 @@ class Phase244StationMigrationInvariantTest {
     @Test
     void ms12_deleteMiddleEdgeExtractsBothComponents() {
         Road road = linearRoad(3, 40.0);
+        List<String> segs = List.copyOf(road.getOrderedSegmentIds());
+        String headEdge = segs.get(0);
+        String mid = segs.get(1);
+        String tailEdge = segs.get(2);
         road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0.0, 10.0),
             PointOfVerticalIntersection.of(40.0, 11.0),
             PointOfVerticalIntersection.of(80.0, 12.0),
             PointOfVerticalIntersection.of(120.0, 13.0))));
-        String mid = road.getOrderedSegmentIds().get(1);
         manager.deleteEdge(mid);
         network = manager.getNetwork();
-        List<Road> survivors = network.getRoads().values().stream()
-            .filter(r -> r.getVerticalAlignment() != null && r.getVerticalAlignment().pviCount() >= 2)
-            .toList();
-        assertTrue(survivors.size() >= 2, "both components should receive extracted VA");
-        double elevSum = 0.0;
-        for (Road r : survivors) {
-            assertNotNull(r.getDesignEntryEdgeId());
-            assertNotNull(r.getDesignEntryNodeId());
-            elevSum += r.getVerticalAlignment().sortedPvis().getFirst().getElevation();
-            elevSum += r.getVerticalAlignment().sortedPvis().getLast().getElevation();
+        Road headComp = null;
+        Road tailComp = null;
+        for (Road r : network.getRoads().values()) {
+            if (r.getOrderedSegmentIds().contains(headEdge)) {
+                headComp = r;
+            }
+            if (r.getOrderedSegmentIds().contains(tailEdge)) {
+                tailComp = r;
+            }
         }
-        assertTrue(elevSum > 40.0, "component endpoint elevations must be preserved");
+        assertNotNull(headComp);
+        assertNotNull(tailComp);
+        assertNotNull(headComp.getDesignEntryEdgeId());
+        assertNotNull(tailComp.getDesignEntryEdgeId());
+        assertEquals(10.0, headComp.getVerticalAlignment().sortedPvis().getFirst().getElevation(), EPS);
+        assertEquals(11.0, headComp.getVerticalAlignment().sortedPvis().getLast().getElevation(), EPS);
+        assertEquals(12.0, tailComp.getVerticalAlignment().sortedPvis().getFirst().getElevation(), EPS);
+        assertEquals(13.0, tailComp.getVerticalAlignment().sortedPvis().getLast().getElevation(), EPS);
     }
 
     @Test
@@ -373,6 +395,7 @@ class Phase244StationMigrationInvariantTest {
         String beforeJson = network.toJson();
         assertNull(manager.splitRoadBeforeSegment(refuseRoad.getId(), refuseSeg),
             "arc HA + vertical-curve cut must refuse split");
+        network = manager.getNetwork(); // abort replaces live network reference
         assertEquals(beforeJson, network.toJson());
 
         // Deterministic refuse: curve cut on extract.
@@ -381,6 +404,40 @@ class Phase244StationMigrationInvariantTest {
             PointOfVerticalIntersection.withCurve(15.0, 12.0, 20.0),
             PointOfVerticalIntersection.of(30.0, 11.0)));
         assertNull(RoadStationDataTransforms.extractVerticalAlignmentRange(curved, 0.0, 15.0));
+
+        // Forced success: reliable circular-arc HA + matching sampled polyline → HA extract split.
+        double radius = 40.0;
+        double arcLen = Math.PI * radius / 2.0;
+        RoadHorizontalAlignment arcHa = new RoadHorizontalAlignment(
+            new Vec2d(radius, 0),
+            Math.PI / 2.0,
+            List.of(HorizontalAlignmentElement.circularArc(arcLen, radius, TurnDirection.LEFT)));
+        List<Vec2d> onHa = HorizontalAlignmentGeometry.sample(arcHa, 4.0);
+        assertTrue(onHa.size() >= 6);
+        int mid = onHa.size() / 2;
+        Road arcRoad = network.createRoad("arc-ok");
+        RoadNode a0 = network.createNode(onHa.getFirst().copy());
+        RoadNode aMid = network.createNode(onHa.get(mid).copy());
+        RoadNode a1 = network.createNode(onHa.getLast().copy());
+        String arcHeadEdge = network.createEdge(a0.getId(), aMid.getId(),
+            onHa.subList(0, mid + 1).stream().map(Vec2d::copy).toList(), arcRoad.getId()).getId();
+        String arcSplit = network.createEdge(aMid.getId(), a1.getId(),
+            onHa.subList(mid, onHa.size()).stream().map(Vec2d::copy).toList(), arcRoad.getId()).getId();
+        arcRoad.setHorizontalAlignment(arcHa);
+        arcRoad.setDesignEntryEdgeId(arcHeadEdge);
+        arcRoad.setDesignEntryNodeId(a0.getId());
+        assertTrue(RoadStationing.domainMap(network, arcRoad).isReliable(),
+            "arc HA + matching samples must be reliable");
+        assertTrue(RoadStationing.segmentStartStation(network, arcRoad, arcSplit) > 1.0);
+        String arcNew = manager.splitRoadBeforeSegment(arcRoad.getId(), arcSplit);
+        network = manager.getNetwork();
+        assertNotNull(arcNew, "reliable arc HA + matching polyline must split via extract");
+        Road arcHead = network.getRoad(arcRoad.getId());
+        Road arcTail = network.getRoad(arcNew);
+        assertNotNull(arcHead.getHorizontalAlignment());
+        assertNotNull(arcTail.getHorizontalAlignment());
+        assertTrue(RoadStationing.domainMap(network, arcHead).isReliable());
+        assertTrue(RoadStationing.domainMap(network, arcTail).isReliable());
     }
 
     @Test
@@ -427,29 +484,51 @@ class Phase244StationMigrationInvariantTest {
 
     @Test
     void reverseEdgeMergePreservesSeamPhysicalPosition() {
-        Road road = network.createRoad("rev-merge");
-        RoadNode a = network.createNode(new Vec2d(0, 0));
-        RoadNode b = network.createNode(new Vec2d(40, 0));
-        RoadNode c = network.createNode(new Vec2d(80, 0));
-        // First edge stored forward A→B; second stored reverse C→B so merge must flip.
-        String e1 = network.createEdge(a.getId(), b.getId(),
-            List.of(new Vec2d(0, 0), new Vec2d(40, 0)), road.getId()).getId();
-        String e2 = network.createEdge(c.getId(), b.getId(),
-            List.of(new Vec2d(80, 0), new Vec2d(40, 0)), road.getId()).getId();
-        road.setTopologyMode(RoadTopologyMode.LOOP);
-        // Not a full loop — use LINEAR with seam-like local: verify merge lineage on reversed edge.
-        road.setTopologyMode(RoadTopologyMode.LINEAR);
-        road.setDesignEntryEdgeId(e1);
-        road.setDesignEntryNodeId(a.getId());
-        road.setLoopSeam(RoadLoopSeam.onSegment(new Vec2d(60, 0), e2, 0.5));
-        Vec2d before = road.getLoopSeam().position().copy();
-        assertTrue(RoadCenterlineEditor.mergeThroughNode(network, b.getId()).isSuccess());
+        // Real LOOP + asymmetric fraction 0.2 (not 0.5) so reverse L−d mirroring is detectable.
+        Road road = squareLoop(40.0);
+        String first = road.getOrderedSegmentIds().getFirst();
+        String second = road.getOrderedSegmentIds().get(1);
+        road.setDesignEntryEdgeId(first);
+        road.setDesignEntryNodeId(network.getEdge(first).getStartNodeId());
+        // 0.2 along second edge from storage start (40,0)→(40,40) → (40, 8).
+        road.setLoopSeam(RoadLoopSeam.onSegment(new Vec2d(40, 8), second, 0.2));
+        assertTrue(RoadLoopSeamService.isSeamResolvable(network, road));
+        Vec2d beforePos = RoadLoopSeamService.overlayPosition(network, road);
+        assertNotNull(beforePos);
+        assertEquals(40.0, beforePos.x, 0.5);
+        assertEquals(8.0, beforePos.y, 0.5);
+
+        // Reverse-storage second edge: merge must apply L−d (0.2 → 0.8 on that span).
+        RoadEdge e2 = network.getEdge(second);
+        network.updateEdgeEndpoints(second, e2.getEndNodeId(), e2.getStartNodeId());
+        List<Vec2d> pts = new java.util.ArrayList<>(e2.getCenterlinePoints());
+        java.util.Collections.reverse(pts);
+        e2.setCenterlinePoints(pts);
+        // After reverse, same world point is at localFraction 0.8 in storage.
+        road.setLoopSeam(RoadLoopSeam.onSegment(new Vec2d(40, 8), second, 0.8));
+        assertTrue(RoadLoopSeamService.isSeamResolvable(network, road));
+
+        String through = network.getEdge(first).getEndNodeId();
+        // Through may now be end of reversed second — use shared node of first & second.
+        RoadEdge e1 = network.getEdge(first);
+        String nA = e1.getEndNodeId();
+        String nB = e1.getStartNodeId();
+        RoadEdge e2b = network.getEdge(second);
+        if (e2b.getStartNodeId().equals(nA) || e2b.getEndNodeId().equals(nA)) {
+            through = nA;
+        } else {
+            through = nB;
+        }
+        assertTrue(RoadCenterlineEditor.mergeThroughNode(network, through).isSuccess());
         Road after = network.getRoad(road.getId());
-        assertEquals(1, after.getOrderedSegmentIds().size());
-        RoadLoopSeam seam = after.getLoopSeam();
-        assertNotNull(seam);
-        assertEquals(before.x, seam.position().x, 0.5);
-        assertEquals(before.y, seam.position().y, 0.5);
+        assertTrue(RoadLoopSeamService.isSeamResolvable(network, after));
+        Vec2d afterPos = RoadLoopSeamService.overlayPosition(network, after);
+        assertNotNull(afterPos);
+        assertEquals(beforePos.x, afterPos.x, 0.5);
+        assertEquals(beforePos.y, afterPos.y, 0.5);
+        assertNotNull(after.getLoopSeam().localFraction());
+        assertTrue(Math.abs(after.getLoopSeam().localFraction() - 0.5) > 1e-3,
+            "asymmetric seam must not collapse to midpoint");
     }
 
     @Test
@@ -500,17 +579,143 @@ class Phase244StationMigrationInvariantTest {
             PointOfVerticalIntersection.of(0.0, 10.0),
             PointOfVerticalIntersection.of(40.0, 11.0),
             PointOfVerticalIntersection.of(80.0, 12.0))));
-        road.setProfileSource(ProfileSource.EDITED);
-        road.setEditedGeometrySignature(77);
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
+        assertTrue(ResolvedProfileAuthority.hasValidEditedProfile(network, road));
         String splitSeg = road.getOrderedSegmentIds().get(1);
         String tailId = manager.splitRoadBeforeSegment(road.getId(), splitSeg);
         network = manager.getNetwork();
         assertNotNull(tailId);
+        assertTrue(ResolvedProfileAuthority.hasValidEditedProfile(network, network.getRoad(road.getId())));
+        assertTrue(ResolvedProfileAuthority.hasValidEditedProfile(network, network.getRoad(tailId)));
         String merged = manager.mergeRoadTailIntoHead(road.getId(), tailId);
         network = manager.getNetwork();
         assertEquals(road.getId(), merged);
         Road after = network.getRoad(road.getId());
-        assertEquals(ProfileSource.EDITED, after.getStoredProfileSource());
+        assertTrue(ResolvedProfileAuthority.hasValidEditedProfile(network, after));
+        assertTrue(ResolvedProfileAuthority.usesEditedProfileForGeneration(network, after));
+    }
+
+    @Test
+    void staleEditedProfileIsNotReactivatedOnSplit() {
+        Road road = linearRoad(2, 40.0);
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 10.0),
+            PointOfVerticalIntersection.of(80.0, 12.0))));
+        road.setProfileSource(ProfileSource.EDITED);
+        road.setEditedGeometrySignature(999_001); // deliberately wrong
+        assertFalse(ResolvedProfileAuthority.hasValidEditedProfile(network, road));
+        String splitSeg = road.getOrderedSegmentIds().get(1);
+        String tailId = manager.splitRoadBeforeSegment(road.getId(), splitSeg);
+        network = manager.getNetwork();
+        assertNotNull(tailId);
+        Road head = network.getRoad(road.getId());
+        Road tail = network.getRoad(tailId);
+        assertFalse(ResolvedProfileAuthority.hasValidEditedProfile(network, head));
+        assertFalse(ResolvedProfileAuthority.hasValidEditedProfile(network, tail));
+        assertFalse(ResolvedProfileAuthority.usesEditedProfileForGeneration(network, head));
+    }
+
+    @Test
+    void topologyRepairMigrationFailureRollsBack() {
+        Road road = linearRoad(3, 40.0);
+        List<String> segs = List.copyOf(road.getOrderedSegmentIds());
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 10.0),
+            PointOfVerticalIntersection.withCurve(40.0, 14.0, 20.0),
+            PointOfVerticalIntersection.of(120.0, 11.0))));
+        // Disconnect without migration so repair must extract across the vertical curve.
+        network.removeEdge(segs.get(1));
+        network = manager.getNetwork();
+        String before = network.toJson();
+        long revision = manager.getNetworkRevision();
+        var result = manager.repairTopology(network.getRoad(road.getId()));
+        network = manager.getNetwork();
+        assertTrue(result.migrationFailed());
+        assertEquals(before, network.toJson());
+        assertEquals(revision, manager.getNetworkRevision());
+        assertFalse(manager.canUndo());
+    }
+
+    @Test
+    void openMergeToLoopPreservesVaVcsFacilitiesAndSpliceOrigin() {
+        Road head = network.createRoad("loop-head");
+        RoadNode n0 = network.createNode(new Vec2d(0, 0));
+        RoadNode n1 = network.createNode(new Vec2d(40, 0));
+        RoadNode n2 = network.createNode(new Vec2d(40, 40));
+        network.createEdge(n0.getId(), n1.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(40, 0)), head.getId());
+        network.createEdge(n1.getId(), n2.getId(),
+            List.of(new Vec2d(40, 0), new Vec2d(40, 40)), head.getId());
+        head.setDesignEntryEdgeId(head.getOrderedSegmentIds().getFirst());
+        head.setDesignEntryNodeId(n0.getId());
+        head.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 10.0),
+            PointOfVerticalIntersection.of(40.0, 11.0),
+            PointOfVerticalIntersection.of(80.0, 12.0))));
+        head.setVariableCrossSections(new RoadVariableCrossSections(List.of(
+            StationCrossSection.at(20.0, section(10))),
+            VariableCrossSectionTransitionMode.STEP));
+        head.setStationFacilities(new RoadStationFacilities(List.of(
+            StationFacilityRun.of(5.0, 60.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.LEFT))));
+
+        Road tail = network.createRoad("loop-tail");
+        RoadNode n3 = network.createNode(new Vec2d(0, 40));
+        String tailFirst = network.createEdge(n2.getId(), n3.getId(),
+            List.of(new Vec2d(40, 40), new Vec2d(0, 40)), tail.getId()).getId();
+        network.createEdge(n3.getId(), n0.getId(),
+            List.of(new Vec2d(0, 40), new Vec2d(0, 0)), tail.getId());
+        // Bind tail walk n2→n0 so append is forward (no reverse + protected refuse).
+        tail.setDesignEntryEdgeId(tailFirst);
+        tail.setDesignEntryNodeId(n2.getId());
+        tail.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 12.0),
+            PointOfVerticalIntersection.of(40.0, 11.5),
+            PointOfVerticalIntersection.of(80.0, 10.0))));
+        tail.setVariableCrossSections(new RoadVariableCrossSections(List.of(
+            StationCrossSection.at(30.0, section(12))),
+            VariableCrossSectionTransitionMode.STEP));
+        tail.setStationFacilities(new RoadStationFacilities(List.of(
+            StationFacilityRun.of(10.0, 50.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.RIGHT))));
+
+        String merged = manager.mergeRoadTailIntoHead(head.getId(), tail.getId());
+        network = manager.getNetwork();
+        assertEquals(head.getId(), merged);
+        Road after = network.getRoad(head.getId());
+        assertEquals(RoadTopologyMode.LOOP, after.getTopologyMode());
+        assertNotNull(after.getLoopSeam());
+        assertTrue(RoadLoopSeamService.isSeamResolvable(network, after));
+        Vec2d seamPos = RoadLoopSeamService.overlayPosition(network, after);
+        assertNotNull(seamPos);
+        assertEquals(0.0, seamPos.x, 0.5);
+        assertEquals(0.0, seamPos.y, 0.5);
+        assertNotNull(after.getVerticalAlignment());
+        assertTrue(after.getVerticalAlignment().pviCount() >= 3);
+        assertNotNull(after.getVariableCrossSections());
+        assertFalse(after.getVariableCrossSections().isEmpty());
+        assertNotNull(after.getStationFacilities());
+        assertFalse(after.getStationFacilities().isEmpty());
+    }
+
+    @Test
+    void deleteEdgeMigrationFailureKeepsSelectionUndoAndRevision() {
+        Road road = linearRoad(2, 40.0);
+        String mid = road.getOrderedSegmentIds().getFirst();
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 10.0),
+            PointOfVerticalIntersection.withCurve(40.0, 15.0, 20.0),
+            PointOfVerticalIntersection.of(80.0, 12.0))));
+        manager.handleEdgeSelect(mid, false);
+        assertTrue(manager.getSelectedEdgeIds().contains(mid));
+        String before = network.toJson();
+        long revision = manager.getNetworkRevision();
+        boolean couldUndo = manager.canUndo();
+        manager.deleteEdge(mid);
+        network = manager.getNetwork();
+        assertEquals(before, network.toJson());
+        assertEquals(revision, manager.getNetworkRevision());
+        assertEquals(couldUndo, manager.canUndo());
+        assertTrue(manager.getSelectedEdgeIds().contains(mid),
+            "failed delete must not clear selection");
     }
 
     private Road linearRoad(int segments, double segLen) {

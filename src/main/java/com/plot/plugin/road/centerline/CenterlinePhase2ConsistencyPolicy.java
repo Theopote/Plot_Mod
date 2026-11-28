@@ -58,6 +58,13 @@ public final class CenterlinePhase2ConsistencyPolicy {
             return;
         }
         // Length-change policy uses instance polyline; station remap uses canonical lengths.
+        // With HA present, refuse when domain map is unreliable — instance ratio ≠ canonical authority.
+        if (road.getHorizontalAlignment() != null) {
+            var map = com.plot.plugin.road.station.RoadStationing.domainMap(network, road);
+            if (map == null || !map.isReliable()) {
+                return;
+            }
+        }
         CenterlineEditStationPolicy policy = operation.resolveStationPolicy(
             before.instanceLength(),
             edge.getLength());

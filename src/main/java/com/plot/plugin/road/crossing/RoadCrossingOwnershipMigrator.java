@@ -151,6 +151,122 @@ public final class RoadCrossingOwnershipMigrator {
         return new CaptureResult(remapped, capture.hadUnresolved());
     }
 
+    /**
+     * After Split Edge: remap bindings on {@code oldEdgeId} onto first/second child by local distance.
+     */
+    public static CaptureResult remapAfterEdgeSplit(
+            CaptureResult capture,
+            String oldEdgeId,
+            String firstEdgeId,
+            String secondEdgeId,
+            double splitLocal) {
+        if (capture == null || capture.isEmpty() || oldEdgeId == null) {
+            return capture;
+        }
+        List<CrossingPassBinding> remapped = new ArrayList<>(capture.bindings().size());
+        for (CrossingPassBinding binding : capture.bindings()) {
+            if (binding.edgeId() == null || !oldEdgeId.equals(binding.edgeId())) {
+                remapped.add(binding);
+                continue;
+            }
+            if (binding.localDistance() <= splitLocal + EPSILON) {
+                remapped.add(new CrossingPassBinding(
+                    binding.crossingId(),
+                    binding.kind(),
+                    binding.role(),
+                    binding.roadId(),
+                    firstEdgeId,
+                    binding.localDistance(),
+                    binding.originalStation(),
+                    binding.worldPosition(),
+                    binding.type(),
+                    binding.elevatedRoadId(),
+                    binding.crossingClearance(),
+                    binding.sharedElevation(),
+                    binding.cornerRadius(),
+                    binding.lowerStationHint(),
+                    binding.upperStationHint()));
+            } else {
+                remapped.add(new CrossingPassBinding(
+                    binding.crossingId(),
+                    binding.kind(),
+                    binding.role(),
+                    binding.roadId(),
+                    secondEdgeId,
+                    Math.max(0.0, binding.localDistance() - splitLocal),
+                    binding.originalStation(),
+                    binding.worldPosition(),
+                    binding.type(),
+                    binding.elevatedRoadId(),
+                    binding.crossingClearance(),
+                    binding.sharedElevation(),
+                    binding.cornerRadius(),
+                    binding.lowerStationHint(),
+                    binding.upperStationHint()));
+            }
+        }
+        return new CaptureResult(remapped, capture.hadUnresolved());
+    }
+
+    /**
+     * After Merge Edge: remap bindings on either old edge onto the merged edge with offset.
+     */
+    public static CaptureResult remapAfterEdgeMerge(
+            CaptureResult capture,
+            String firstOldEdgeId,
+            String secondOldEdgeId,
+            String mergedEdgeId,
+            double secondLocalOffset,
+            double firstOldLength,
+            double secondOldLength,
+            boolean firstReversed,
+            boolean secondReversed) {
+        if (capture == null || capture.isEmpty() || mergedEdgeId == null) {
+            return capture;
+        }
+        List<CrossingPassBinding> remapped = new ArrayList<>(capture.bindings().size());
+        for (CrossingPassBinding binding : capture.bindings()) {
+            if (binding.edgeId() == null) {
+                remapped.add(binding);
+                continue;
+            }
+            double local;
+            if (binding.edgeId().equals(firstOldEdgeId)) {
+                double d = binding.localDistance();
+                if (firstReversed) {
+                    d = Math.max(0.0, firstOldLength - d);
+                }
+                local = d;
+            } else if (binding.edgeId().equals(secondOldEdgeId)) {
+                double d = binding.localDistance();
+                if (secondReversed) {
+                    d = Math.max(0.0, secondOldLength - d);
+                }
+                local = secondLocalOffset + d;
+            } else {
+                remapped.add(binding);
+                continue;
+            }
+            remapped.add(new CrossingPassBinding(
+                binding.crossingId(),
+                binding.kind(),
+                binding.role(),
+                binding.roadId(),
+                mergedEdgeId,
+                local,
+                binding.originalStation(),
+                binding.worldPosition(),
+                binding.type(),
+                binding.elevatedRoadId(),
+                binding.crossingClearance(),
+                binding.sharedElevation(),
+                binding.cornerRadius(),
+                binding.lowerStationHint(),
+                binding.upperStationHint()));
+        }
+        return new CaptureResult(remapped, capture.hadUnresolved());
+    }
+
     /** Logical split/merge: unresolved passes fail the edit (do not drop designs). */
     public static ApplyResult reapply(RoadNetwork network, CaptureResult capture) {
         return reapply(network, capture, Set.of());
