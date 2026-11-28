@@ -102,6 +102,18 @@ public record ProfileCompileInputsFingerprint(
             RoadNode exit = network.getNode(segment.exitNodeId());
             hash = 31 * hash + nodeHash(entry) + 17 * nodeHash(exit);
         }
+        // Include HA design elements so EDITED binding invalidates when HA changed but
+        // instance polyline has not yet been rematerialized (same fields as preview).
+        hash = 31 * hash + Objects.hashCode(road.getTopologyMode());
+        var alignment = road.getHorizontalAlignment();
+        if (alignment != null && !alignment.isEmpty()) {
+            Vec2d origin = alignment.getOrigin();
+            hash = 31 * hash + Objects.hash(origin.x, origin.y, alignment.getStartBearingRadians());
+            for (var element : alignment.getElements()) {
+                hash = 31 * hash + Objects.hash(element.getType(), element.getLength(),
+                    element.getRadius(), element.getDirection(), element.getSpiralParameterA());
+            }
+        }
         return hash;
     }
 
@@ -153,25 +165,11 @@ public record ProfileCompileInputsFingerprint(
     }
 
     /**
-     * Preview cache signature. Polyline shape is already in {@link #geometryHash} via
-     * collinear-simplified chain walk — do not fold the same points again (polynomial
-     * double-fold collides for equal-length mirrored bends). Extra HA element hashing
-     * covers design-alignment edits that are not yet materialized into the instance polyline.
+     * Preview cache signature. Delegates to {@link #geometryHash}, which already includes
+     * collinear-simplified polyline walk plus HA element fields (avoid double-folding).
      */
     private static int previewGeometryHash(RoadNetwork network, Road road) {
-        int hash = geometryHash(network, road);
-        if (road == null || !RoadStationing.isStationable(network, road)) return hash;
-        hash = 31 * hash + Objects.hashCode(road.getTopologyMode());
-        var alignment = road.getHorizontalAlignment();
-        if (alignment != null && !alignment.isEmpty()) {
-            Vec2d origin = alignment.getOrigin();
-            hash = 31 * hash + Objects.hash(origin.x, origin.y, alignment.getStartBearingRadians());
-            for (var element : alignment.getElements()) {
-                hash = 31 * hash + Objects.hash(element.getType(), element.getLength(),
-                    element.getRadius(), element.getDirection(), element.getSpiralParameterA());
-            }
-        }
-        return hash;
+        return geometryHash(network, road);
     }
 
     static int alignmentHash(RoadVerticalAlignment alignment) {

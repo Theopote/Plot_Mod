@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalInt;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -56,8 +57,9 @@ class WaterCrossingP1ModeTest {
         }
     }
 
+    /** VA-A04: confirmed FLAT holds user Y and reports water conflict instead of silent raise. */
     @Test
-    void flatRoadAutoRaisesAboveWater() {
+    void flatRoadHoldsElevationAndReportsWaterConflict() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         ProfileSolveSupport support = ProfileSolveSupport.fromConfig(config, ignored -> 1.0);
         Scenario scenario = riverScenario(100.0, 35.0, 65.0, 50, 68);
@@ -79,9 +81,10 @@ class WaterCrossingP1ModeTest {
             RoadVerticalMode.FLAT,
             TerrainFollowPreset.STANDARD);
 
-        assertTrue(result.waterConstraintFeasible());
+        assertFalse(result.waterConstraintFeasible(),
+            "confirmed FLAT below water must diagnose, not silent-raise");
         for (double elevation : result.profileDesignElevations()) {
-            assertTrue(elevation >= 69.0 - 1e-6, "flat road should auto-raise above water + clearance");
+            assertEquals(65.0, elevation, 1e-6, "confirmed FLAT Y must be held");
         }
     }
 

@@ -45,8 +45,9 @@ class VerticalAlignmentProfileSolverTest {
         assertEquals(90, result.heightInfos().get(1).targetEnd);
     }
 
+    /** VA-A06: conflicting manual endpoints must not silently rewrite confirmed VA samples. */
     @Test
-    void manualEndpointOverridesDesignElevation() {
+    void conflictingManualEndpointsDoNotRewriteDesignElevation() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         ProfileSolveSupport support = ProfileSolveSupport.fromConfig(config, segments -> 1.0);
         RoadVerticalAlignment alignment = new RoadVerticalAlignment(List.of(
@@ -67,10 +68,38 @@ class VerticalAlignmentProfileSolverTest {
             78,
             support);
 
-        assertEquals(70, result.heightInfos().getFirst().targetStart);
-        assertEquals(78, result.heightInfos().getFirst().targetEnd);
-        assertEquals(70.0, result.profileDesignElevations().getFirst(), 1e-6);
-        assertEquals(78.0, result.profileDesignElevations().getLast(), 1e-6);
+        assertEquals(80, result.heightInfos().getFirst().targetStart);
+        assertEquals(90, result.heightInfos().getFirst().targetEnd);
+        assertEquals(80.0, result.profileDesignElevations().getFirst(), 1e-6);
+        assertEquals(90.0, result.profileDesignElevations().getLast(), 1e-6);
+        assertFalse(result.manualEndpointConstraintFeasible());
+    }
+
+    @Test
+    void compatibleManualEndpointsRemainFeasible() {
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        ProfileSolveSupport support = ProfileSolveSupport.fromConfig(config, segments -> 1.0);
+        RoadVerticalAlignment alignment = new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 80.0),
+            PointOfVerticalIntersection.of(100.0, 90.0)
+        ));
+        List<PathSegment> segments = List.of(
+            new PathSegment(new Vec2d(0, 0), new Vec2d(100, 0)));
+
+        ProfileSolveResult result = VerticalAlignmentProfileSolver.solveForEdge(
+            alignment,
+            0.0,
+            100.0,
+            segments,
+            new FlatTerrainSampler(64),
+            4.0,
+            80,
+            90,
+            support);
+
+        assertEquals(80, result.heightInfos().getFirst().targetStart);
+        assertEquals(90, result.heightInfos().getFirst().targetEnd);
+        assertEquals(true, result.manualEndpointConstraintFeasible());
     }
 
     @Test

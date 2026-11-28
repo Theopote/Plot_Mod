@@ -135,16 +135,6 @@ public final class RoadStationDataTransforms {
             () -> road.setHorizontalAlignment(null));
     }
 
-    /**
-     * 拆分 VA/VCS/设施与 flat intent。
-     * <p>调用方须先完成本方法，再迁移分段与 reorder，最后再
-     * {@link #refitHorizontalAlignmentFromCenterline}——拟合依赖当时的 segment 链。
-     */
-    public static StationMigrationResult applyRoadSplit(
-            RoadNetwork network, Road head, Road tail, double splitStation) {
-        return applyRoadSplit(network, head, tail, splitStation, null);
-    }
-
     public static StationMigrationResult applyRoadSplit(
             RoadNetwork network,
             Road head,
@@ -491,13 +481,10 @@ public final class RoadStationDataTransforms {
             double canonicalStation,
             double elevation) {
         Optional<SegmentStation> resolved = RoadStationing.resolve(network, road, canonicalStation);
-        if (resolved.isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.of(new PhysicalStationAnchor(
-            resolved.get().segmentId(),
-            resolved.get().localDistance(),
-            elevation));
+        return resolved.map(segmentStation -> new PhysicalStationAnchor(
+                segmentStation.segmentId(),
+                segmentStation.localDistance(),
+                elevation));
     }
 
     /**
@@ -763,9 +750,7 @@ public final class RoadStationDataTransforms {
                 expectedFac.add(new FacilityIntervalAnchor(
                     interval.identity(), interval.start(), clippedEnd));
             }
-            if (!expectedFac.isEmpty() && !facilityIntervalsEqual(expectedFac, actual)) {
-                return false;
-            }
+            return expectedFac.isEmpty() || facilityIntervalsEqual(expectedFac, actual);
         }
         return true;
     }
@@ -928,10 +913,7 @@ public final class RoadStationDataTransforms {
         Double tailFlat = tail.getFlatVerticalIntent() != null
             ? tail.getFlatVerticalIntent().getBaseElevation()
             : null;
-        if (headFlat != null && tailFlat != null && Math.abs(headFlat - tailFlat) > 1e-3) {
-            return false;
-        }
-        return true;
+        return headFlat == null || tailFlat == null || !(Math.abs(headFlat - tailFlat) > 1e-3);
     }
 
     /**
@@ -1044,19 +1026,6 @@ public final class RoadStationDataTransforms {
             double nativeEnd,
             String entryNodeId,
             String exitNodeId) {
-        public EdgeStationSpan(String edgeId, double start, double end, int sliceIndex) {
-            this(edgeId, start, end, sliceIndex, Double.NaN, Double.NaN, null, null);
-        }
-
-        public EdgeStationSpan(
-                String edgeId,
-                double start,
-                double end,
-                int sliceIndex,
-                double nativeStart,
-                double nativeEnd) {
-            this(edgeId, start, end, sliceIndex, nativeStart, nativeEnd, null, null);
-        }
 
         public boolean isValid() {
             return edgeId != null && !edgeId.isBlank() && end > start + EPSILON;
@@ -1074,28 +1043,6 @@ public final class RoadStationDataTransforms {
             return entryNodeId != null && !entryNodeId.isBlank()
                 && exitNodeId != null && !exitNodeId.isBlank();
         }
-    }
-
-    /**
-     * Extract HA for a canonical station interval using the road's orientation at capture time.
-     * Opposed walks reverse after extract; SPIRAL refuse returns empty (R02/R05).
-     */
-    public static Optional<RoadHorizontalAlignment> extractHaCanonicalRange(
-            RoadNetwork network,
-            Road orientationRoad,
-            RoadHorizontalAlignment source,
-            double canonicalStart,
-            double canonicalEnd) {
-        if (network == null || orientationRoad == null || source == null || source.isEmpty()) {
-            return Optional.empty();
-        }
-        if (!Double.isFinite(canonicalStart) || !Double.isFinite(canonicalEnd)
-                || canonicalEnd <= canonicalStart + EPSILON) {
-            return Optional.empty();
-        }
-        double nStart = RoadPlanGeometry.haNativeStation(network, orientationRoad, canonicalStart);
-        double nEnd = RoadPlanGeometry.haNativeStation(network, orientationRoad, canonicalEnd);
-        return extractHaNativeRange(source, nStart, nEnd);
     }
 
     /**
@@ -1128,24 +1075,6 @@ public final class RoadStationDataTransforms {
         }
         RoadHorizontalAlignment reversed = HorizontalAlignmentGeometry.reverse(piece.get());
         return reversed != null && !reversed.isEmpty() ? Optional.of(reversed) : Optional.empty();
-    }
-
-    /** Apply captured HA slice onto target; clears HA when source had none. */
-    public static boolean applyExtractedHaToRoad(
-            Road target,
-            Optional<RoadHorizontalAlignment> extracted,
-            boolean sourceHadHa) {
-        if (target == null) {
-            return false;
-        }
-        if (!sourceHadHa) {
-            return true;
-        }
-        if (extracted.isEmpty()) {
-            return false;
-        }
-        target.setHorizontalAlignment(extracted.get());
-        return true;
     }
 
     static double remapStationAfterSegmentEdit(
@@ -1341,20 +1270,6 @@ public final class RoadStationDataTransforms {
             .comparingDouble(StationFacilityRun::getStartStation)
             .thenComparing(run -> run.getEndStation() == null ? Double.MAX_VALUE : run.getEndStation()));
         return remapped.isEmpty() ? null : new RoadStationFacilities(remapped);
-    }
-
-    /**
-     * 从 {@code source} 的沿桩号工程数据中提取 {@code [rangeStart, rangeEnd)}，写入 {@code target} 并重映射为 K0+000 起。
-     * Fail-closed：有源 VA 却无法无损裁剪时拒绝且不修改 target。
-     */
-    public static StationMigrationResult applyStationRangeExtract(
-            Road source,
-            Road target,
-            double totalSourceLength,
-            double rangeStart,
-            double rangeEnd) {
-        return applyStationRangeExtract(
-            source, target, totalSourceLength, rangeStart, rangeEnd, null);
     }
 
     public static StationMigrationResult applyStationRangeExtract(
@@ -1641,35 +1556,6 @@ public final class RoadStationDataTransforms {
         return VerticalAlignmentGeometry.isEvaluable(result) ? result : null;
     }
 
-    static RoadVerticalAlignment remapVerticalAlignment(
-            RoadVerticalAlignment source,
-            double rangeStart,
-            double rangeEnd,
-            double stationOffset) {
-        RoadVerticalAlignment extracted = extractVerticalAlignmentRange(source, rangeStart, rangeEnd);
-        if (extracted == null) {
-            return null;
-        }
-        if (Math.abs(stationOffset) <= EPSILON) {
-            return extracted;
-        }
-        List<PointOfVerticalIntersection> shifted = new ArrayList<>();
-        for (PointOfVerticalIntersection pvi : extracted.sortedPvis()) {
-            shifted.add(new PointOfVerticalIntersection(
-                pvi.getStation() + stationOffset,
-                pvi.getElevation(),
-                pvi.getCurveLength(),
-                pvi.getConstraint()));
-        }
-        return new RoadVerticalAlignment(shifted);
-    }
-
-    static RoadVerticalAlignment trimHeadVerticalAlignment(
-            RoadVerticalAlignment source,
-            double splitStation) {
-        return extractVerticalAlignmentRange(source, 0.0, splitStation);
-    }
-
     static RoadVerticalAlignment extractTailVerticalAlignment(
             RoadVerticalAlignment source,
             double splitStation,
@@ -1693,27 +1579,10 @@ public final class RoadStationDataTransforms {
             RoadVariableCrossSections source,
             RoadCrossSection roadDefault,
             double splitStation,
-            double totalLength) {
-        return trimHeadVariableCrossSections(source, roadDefault, splitStation, totalLength, null);
-    }
-
-    static RoadVariableCrossSections trimHeadVariableCrossSections(
-            RoadVariableCrossSections source,
-            RoadCrossSection roadDefault,
-            double splitStation,
             double totalLength,
             RoadSystemConfig defaults) {
         return remapVariableCrossSections(
             source, roadDefault, totalLength, 0.0, splitStation, 0.0, defaults);
-    }
-
-    static RoadVariableCrossSections extractTailVariableCrossSections(
-            RoadVariableCrossSections source,
-            RoadCrossSection roadDefault,
-            double splitStation,
-            double totalLength) {
-        return extractTailVariableCrossSections(
-            source, roadDefault, splitStation, totalLength, null);
     }
 
     static RoadVariableCrossSections extractTailVariableCrossSections(
@@ -1835,17 +1704,6 @@ public final class RoadStationDataTransforms {
             RoadCrossSection headDefault,
             RoadCrossSection tailDefault,
             double headLength,
-            double tailLength) {
-        return mergeVariableCrossSections(
-            head, tail, headDefault, tailDefault, headLength, tailLength, null);
-    }
-
-    static RoadVariableCrossSections mergeVariableCrossSections(
-            RoadVariableCrossSections head,
-            RoadVariableCrossSections tail,
-            RoadCrossSection headDefault,
-            RoadCrossSection tailDefault,
-            double headLength,
             double tailLength,
             RoadSystemConfig defaults) {
         VariableCrossSectionTransitionMode headMode = head != null
@@ -1862,8 +1720,7 @@ public final class RoadStationDataTransforms {
         VariableCrossSectionTransitionMode mode = headHas ? headMode : tailMode;
         RoadCrossSection mergedDefault = headDefault != null ? headDefault : new RoadCrossSection();
         RoadCrossSection tailSectionDefault = tailDefault != null ? tailDefault : mergedDefault;
-        List<Interval> intervals = new ArrayList<>();
-        intervals.addAll(intervalsForRoad(head, mergedDefault, headLength, 0.0));
+        List<Interval> intervals = new ArrayList<>(intervalsForRoad(head, mergedDefault, headLength, 0.0));
         if (tailLength > EPSILON) {
             intervals.addAll(intervalsForRoad(tail, tailSectionDefault, tailLength, headLength));
         }
@@ -2009,17 +1866,6 @@ public final class RoadStationDataTransforms {
                 interval.template));
         }
         return shifted;
-    }
-
-    private static RoadVariableCrossSections remapVariableCrossSections(
-            RoadVariableCrossSections source,
-            RoadCrossSection roadDefault,
-            double totalLength,
-            double rangeStart,
-            double rangeEnd,
-            double stationOffset) {
-        return remapVariableCrossSections(
-            source, roadDefault, totalLength, rangeStart, rangeEnd, stationOffset, null);
     }
 
     private static RoadVariableCrossSections remapVariableCrossSections(
@@ -2196,13 +2042,6 @@ public final class RoadStationDataTransforms {
         }
         merged.add(current);
         return merged;
-    }
-
-    private static RoadVariableCrossSections intervalsToVariableCrossSections(
-            List<Interval> intervals,
-            RoadCrossSection defaultSection) {
-        return intervalsToVariableCrossSections(
-            intervals, defaultSection, VariableCrossSectionTransitionMode.STEP);
     }
 
     private static RoadVariableCrossSections intervalsToVariableCrossSections(
@@ -2546,7 +2385,9 @@ public final class RoadStationDataTransforms {
             if (Double.isFinite(rotatedZero)
                     && Math.abs(rotatedZero) > EPSILON
                     && Math.abs(rotatedZero - loopLength) > EPSILON) {
-                rotated.add(StationCrossSection.at(rotatedZero, defaultSection.copy()));
+                if (defaultSection != null) {
+                    rotated.add(StationCrossSection.at(rotatedZero, defaultSection.copy()));
+                }
             }
         }
         for (StationCrossSection entry : sorted) {

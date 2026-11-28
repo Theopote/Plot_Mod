@@ -27,6 +27,7 @@ import com.plot.plugin.road.pipeline.profile.RoadProfileSolveCoordinator;
 import com.plot.plugin.road.pipeline.profile.RoadProfileSolver;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import com.plot.plugin.road.solid.RoadGenerationResult;
+import com.plot.plugin.road.vertical.ResolvedProfileAuthority;
 import com.plot.core.terrain.TerrainSampler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -114,6 +115,20 @@ public final class RoadEdgeBuildOrchestrator {
             DesignElevationSource designElevation = DesignElevationSource.forEdge(network, edge, segments);
             double pathLength = RoadGeometryUtils.calculatePathLength(pathPoints);
             Road road = network.getRoadForEdge(edge);
+            // Hard fails only for confirmed design authority (EDITED/FLAT). AUTO water/quality
+            // flags remain soft so bridge/tunnel heuristics can still place geometry.
+            ResolvedProfileAuthority.Kind authorityKind =
+                ResolvedProfileAuthority.resolve(network, road).kind();
+            boolean designAuthority = authorityKind == ResolvedProfileAuthority.Kind.EDITED
+                || authorityKind == ResolvedProfileAuthority.Kind.FLAT
+                || ResolvedProfileAuthority.isIllegalEditedClaim(network, road);
+            if (designAuthority && (!heightCalculation.manualEndpointConstraintFeasible()
+                    || !heightCalculation.waterConstraintFeasible())) {
+                String reason = !heightCalculation.manualEndpointConstraintFeasible()
+                    ? "manual endpoint elevation conflict"
+                    : "water elevation constraint conflict";
+                return EdgeGenerationResult.failed(reason);
+            }
             RoadTerrainStyle terrainStyle = RoadTerrainStyle.effective(road, host.config());
             com.plot.plugin.road.tunnel.ResolvedTunnelStyle tunnelStyle =
                 com.plot.plugin.road.tunnel.TunnelStyle.resolve(road, host.config());

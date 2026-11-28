@@ -61,20 +61,28 @@ public final class RoadGeneratorProfileContext implements ProfileEdgeContext {
     double halfWidth = RoadDimensionUtils.halfExtentFromCenter(
         RoadModelUtils.getEffectiveWidth(network, edge, config));
     Road road = network.getRoadForEdge(edge);
-    // Confirmed edited VA + unreliable station map must not silently fall back to terrain solve.
-    if (ResolvedProfileAuthority.usesEditedProfileForGeneration(network, road)
-        && !RoadStationing.domainMap(network, road).isReliable()) {
+    ResolvedProfileAuthority.Resolution authority = ResolvedProfileAuthority.resolve(network, road);
+    String roadId = road != null ? road.getId() : "?";
+    // Illegal EDITED claim (incomplete / unreliable / loop mismatch) must fail closed.
+    if (ResolvedProfileAuthority.isIllegalEditedClaim(network, road)) {
       throw new IllegalStateException(
-          "design vertical alignment requires a reliable station domain map for road "
-              + (road != null ? road.getId() : "?"));
+          "edited vertical alignment is not valid for generation on road " + roadId
+              + " (" + ResolvedProfileAuthority.evaluateEditedValidity(network, road) + ")");
+    }
+    boolean requiresDesignAuthority =
+        authority.kind() == ResolvedProfileAuthority.Kind.EDITED
+            || authority.kind() == ResolvedProfileAuthority.Kind.FLAT;
+    if (requiresDesignAuthority && !RoadStationing.domainMap(network, road).isReliable()) {
+      throw new IllegalStateException(
+          "design vertical alignment requires a reliable station domain map for road " + roadId);
     }
     if (VerticalAlignmentProfileSupport.shouldUseVerticalAlignment(network, road)) {
       double maxGrade = road.getEffectiveMaxSlope(config);
-      if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
+      if (authority.kind() == ResolvedProfileAuthority.Kind.FLAT) {
         FlatVerticalIntentSupport.syncCompiledAlignment(network, road, maxGrade);
       }
       RoadVerticalAlignment alignment = RoadVerticalAlignmentResolver.resolve(network, road, maxGrade);
-      RoadVerticalMode solverMode = verticalAlignmentSolverMode(network, road);
+      RoadVerticalMode solverMode = verticalAlignmentSolverMode(network, road, authority.kind());
       ProfileSolveResult solved = VerticalAlignmentProfileSolver.solveForEdge(
           alignment,
           network,
@@ -94,6 +102,10 @@ public final class RoadGeneratorProfileContext implements ProfileEdgeContext {
             "design vertical alignment solve produced no heights for edge " + edge.getId());
       }
       return solved;
+    }
+    if (requiresDesignAuthority) {
+      throw new IllegalStateException(
+          "flat/edited profile authority could not enter design solver for road " + roadId);
     }
     return RoadProfileSolver.solveForEdge(
         segments,
@@ -163,14 +175,16 @@ public final class RoadGeneratorProfileContext implements ProfileEdgeContext {
 
   /**
    * VA 编译器仍用 {@link RoadVerticalMode#MANUAL_PROFILE} 表示「按设计线直接求解」；
-   * 产品层纵向方式可为 FIT_TERRAIN + EDITED。
+   * 产品层纵向方式可为 FIT_TERRAIN + EDITED。分流依据为 {@link ResolvedProfileAuthority.Kind}。
    */
-  private static RoadVerticalMode verticalAlignmentSolverMode(RoadNetwork network, Road road) {
-    if (com.plot.plugin.road.vertical.NetworkElevationAuthority.isUniformFlat(network)
-            || road.getVerticalMode() == RoadVerticalMode.FLAT) {
+  private static RoadVerticalMode verticalAlignmentSolverMode(
+      RoadNetwork network,
+      Road road,
+      ResolvedProfileAuthority.Kind kind) {
+    if (kind == ResolvedProfileAuthority.Kind.FLAT) {
       return RoadVerticalMode.FLAT;
     }
-    if (ResolvedProfileAuthority.usesEditedProfileForGeneration(network, road)) {
+    if (kind == ResolvedProfileAuthority.Kind.EDITED) {
       return RoadVerticalMode.MANUAL_PROFILE;
     }
     return road.getVerticalMode();

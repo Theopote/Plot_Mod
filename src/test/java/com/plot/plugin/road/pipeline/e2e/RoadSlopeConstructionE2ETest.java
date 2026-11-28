@@ -163,12 +163,13 @@ class RoadSlopeConstructionE2ETest {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("diag");
         road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
-        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
-            PointOfVerticalIntersection.of(0, 64),
-            PointOfVerticalIntersection.of(30, 64))));
         RoadNode a = network.createNode(new Vec2d(0, 0));
         RoadNode b = network.createNode(new Vec2d(30, 30));
         network.createEdge(a.getId(), b.getId(), List.of(a.getPosition(), b.getPosition()), road.getId());
+        double length = com.plot.plugin.road.station.RoadStationing.canonicalLength(network, road);
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 64),
+            PointOfVerticalIntersection.of(length, 64))));
 
         RoadGenerationResult edge = singleEdgePreview(
             network, slopeEnabledConfig(), new FlatTerrainSampler(90));

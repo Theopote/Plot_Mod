@@ -244,11 +244,14 @@ public final class RoadProfileSolver {
             TerrainProfileSampleChain terrainChain = TerrainProfileSampleChain.fromWorldSamples(
                 worldCumulativeDistances,
                 sampleData.groundSamples());
+            double referenceGradePercent = resolveReferenceGradePercent(
+                segments, maxSlopes, maxSlopeResolver, config);
             terrainTrend = TerrainTrendBuilder.build(
                 terrainChain,
                 effectiveTerrainPreset,
                 manualStartHeight,
-                manualEndHeight);
+                manualEndHeight,
+                referenceGradePercent);
             guideLine = new ArrayList<>(terrainTrend.toIntegerGuideLine());
         } else {
             guideLine = RoadGuideLineUtils.computeGuideLine(
@@ -381,11 +384,9 @@ public final class RoadProfileSolver {
             RoadVerticalMode verticalMode,
             Integer manualStartHeight,
             Integer manualEndHeight) {
+        // Confirmed FLAT holds user Y; water conflicts are diagnosed without silent raise.
         if (verticalMode == RoadVerticalMode.FLAT) {
-            if (manualStartHeight != null || manualEndHeight != null) {
-                return EnvironmentFeasibilityProjector.FlattenPolicy.STRICT_MANUAL;
-            }
-            return EnvironmentFeasibilityProjector.FlattenPolicy.AUTO_RAISE_UNIFORM;
+            return EnvironmentFeasibilityProjector.FlattenPolicy.STRICT_MANUAL;
         }
         if (manualStartHeight != null
                 && manualStartHeight.equals(manualEndHeight)) {
@@ -526,5 +527,32 @@ public final class RoadProfileSolver {
         }
         return sampleData.cumulativeDistances().get(segmentIndex)
             / Math.max(1e-9, canvasUnitsPerBlock);
+    }
+
+    private static double resolveReferenceGradePercent(
+            List<PathSegment> segments,
+            List<Float> maxSlopes,
+            IntFunction<Float> maxSlopeResolver,
+            RoadSystemConfig config) {
+        double max = 0.0;
+        if (maxSlopes != null) {
+            for (Float slope : maxSlopes) {
+                if (slope != null && slope > max) {
+                    max = slope;
+                }
+            }
+        }
+        if (max <= 1e-9 && maxSlopeResolver != null && segments != null) {
+            for (int i = 0; i < segments.size(); i++) {
+                Float slope = maxSlopeResolver.apply(i);
+                if (slope != null && slope > max) {
+                    max = slope;
+                }
+            }
+        }
+        if (max <= 1e-9 && config != null) {
+            max = config.getMaxSlope();
+        }
+        return max > 1e-9 ? max : 8.0;
     }
 }

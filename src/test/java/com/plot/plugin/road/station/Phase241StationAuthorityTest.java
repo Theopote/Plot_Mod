@@ -259,9 +259,11 @@ class Phase241StationAuthorityTest {
         Road road = network.getRoad("loop");
         road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
         double total = RoadStationing.canonicalLength(network, road);
+        // LOOP EDITED requires matching seam elevations; station mapping is what this test checks.
         road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
-            PointOfVerticalIntersection.of(0.0, 60.0),
-            PointOfVerticalIntersection.of(total, 80.0))));
+            PointOfVerticalIntersection.of(0.0, 70.0),
+            PointOfVerticalIntersection.of(total * 0.5, 80.0),
+            PointOfVerticalIntersection.of(total, 70.0))));
         RoadTestFixtures.confirmEditedProfileGeometry(network, road);
 
         String seamEdgeId = road.getLoopSeam().segmentHintId();
@@ -574,7 +576,10 @@ class Phase241StationAuthorityTest {
             PointOfVerticalIntersection.of(100.0, 80.0))));
         RoadTestFixtures.confirmEditedProfileGeometry(network, road);
 
-        assertTrue(ResolvedProfileAuthority.usesEditedProfileForGeneration(network, road));
+        // Unreliable domain map makes EDITED invalid for generation, but the claim stays
+        // fail-closed (illegal) instead of silently falling through to terrain solve.
+        assertTrue(ResolvedProfileAuthority.isIllegalEditedClaim(network, road));
+        assertFalse(ResolvedProfileAuthority.usesEditedProfileForGeneration(network, road));
         assertFalse(RoadStationing.domainMap(network, road).isReliable());
 
         RoadEdge edge = network.getEdge(road.getOrderedSegmentIds().getFirst());

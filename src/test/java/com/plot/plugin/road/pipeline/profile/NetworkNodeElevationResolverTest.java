@@ -7,17 +7,21 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.RoadTestFixtures;
 import com.plot.plugin.road.RoadTestFixtures;
+import com.plot.plugin.road.model.ManualElevationOrigin;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.core.terrain.FlatTerrainSampler;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
+import com.plot.plugin.road.vertical.RoadVerticalMode;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class NetworkNodeElevationResolverTest {
@@ -68,6 +72,60 @@ class NetworkNodeElevationResolverTest {
         assertFalse(RoadStationing.segmentFlowsWithGeometry(network, road, reversedTail.getId()));
         RoadNode junction = network.getNode(n2.getId());
         assertEquals(90, VerticalAlignmentEndpointHeight.atNode(network, reversedTail, junction).getAsInt());
+    }
+
+    /** VA-A08: conflicting EDITED endpoints must not be averaged into a fake junction height. */
+    @Test
+    void conflictingEditedDesignsDoNotAverage() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("a");
+        roadA.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        roadA.setVerticalAlignment(new RoadVerticalAlignment(java.util.List.of(
+            PointOfVerticalIntersection.of(0.0, 80.0),
+            PointOfVerticalIntersection.of(40.0, 80.0))));
+        Road roadB = network.createRoad("b");
+        roadB.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        roadB.setVerticalAlignment(new RoadVerticalAlignment(java.util.List.of(
+            PointOfVerticalIntersection.of(0.0, 70.0),
+            PointOfVerticalIntersection.of(40.0, 70.0))));
+        RoadNode shared = network.createNode(new Vec2d(0, 0));
+        RoadNode endA = network.createNode(new Vec2d(40, 0));
+        RoadNode endB = network.createNode(new Vec2d(0, 40));
+        network.createEdge(
+            shared.getId(), endA.getId(),
+            java.util.List.of(new Vec2d(0, 0), new Vec2d(40, 0)), roadA.getId());
+        network.createEdge(
+            shared.getId(), endB.getId(),
+            java.util.List.of(new Vec2d(0, 0), new Vec2d(0, 40)), roadB.getId());
+        RoadTestFixtures.confirmEditedProfileGeometry(network, roadA);
+        RoadTestFixtures.confirmEditedProfileGeometry(network, roadB);
+
+        AtomicBoolean logged = new AtomicBoolean(false);
+        Map<String, Integer> elevations = createResolver().resolve(
+            network,
+            new FlatTerrainSampler(64),
+            (nodeId, samples, spread, resolvedHeight) -> logged.set(true));
+
+        assertNull(elevations.get(shared.getId()),
+            "conflicting EDITED designs must not produce an averaged junction height");
+        assertTrue(logged.get(), "conflict should be reported to mismatch logger");
+    }
+
+    /** VA-A06: USER lock conflicting with EDITED design refuses silent resolution. */
+    @Test
+    void userLockConflictingWithEditedDesignIsUnresolved() {
+        RoadNetwork network = buildTwoSegmentRoad();
+        RoadNode middle = network.getNodes().values().stream()
+            .filter(node -> node.getConnectedEdgeIds().size() == 2)
+            .findFirst()
+            .orElseThrow();
+        middle.setManualElevation(70.0, ManualElevationOrigin.USER);
+
+        Map<String, Integer> elevations = createResolver().resolve(
+            network, new FlatTerrainSampler(64), null);
+
+        assertNull(elevations.get(middle.getId()),
+            "USER lock vs EDITED Y90 must not silently pick either value");
     }
 
     private static NetworkNodeElevationResolver createResolver() {

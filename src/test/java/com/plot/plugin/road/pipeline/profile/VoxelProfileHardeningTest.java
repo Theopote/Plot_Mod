@@ -5,6 +5,7 @@ import com.plot.core.terrain.FlatTerrainSampler;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGenerator;
+import com.plot.plugin.road.RoadTestFixtures;
 import com.plot.plugin.road.benchmark.RoadBenchmarkHarness;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -149,6 +150,7 @@ class VoxelProfileHardeningTest {
         RoadNode b = network.createNode(new Vec2d(40, 0));
         network.createEdge(a.getId(), mid.getId(), List.of(a.getPosition(), mid.getPosition()), road.getId());
         network.createEdge(mid.getId(), b.getId(), List.of(mid.getPosition(), b.getPosition()), road.getId());
+        RoadTestFixtures.confirmEditedProfileGeometry(network, road);
 
         RoadSystemConfig config = config();
         RoadGenerator generator = generator(config);
@@ -194,6 +196,7 @@ class VoxelProfileHardeningTest {
         RoadNode a = network.createNode(new Vec2d(0, 0));
         RoadNode b = network.createNode(new Vec2d(length, 0));
         network.createEdge(a.getId(), b.getId(), List.of(a.getPosition(), b.getPosition()), road.getId());
+        RoadTestFixtures.confirmEditedProfileGeometry(network, road);
 
         VoxelProfileCompileResult result = RoadVoxelProfileCompiler.compile(
             network, road, config(), generator(config()), new FlatTerrainSampler(64),

@@ -76,9 +76,6 @@ class RoadSlopeOverlapCurvedE2ETest {
         road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
         road.setIncludeSlopeBatter(true);
         road.setMaxSlope(40.0f);
-        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
-            PointOfVerticalIntersection.of(0, 64),
-            PointOfVerticalIntersection.of(50, 64))));
 
         List<Vec2d> path = List.of(
             new Vec2d(0, 0),
@@ -90,6 +87,10 @@ class RoadSlopeOverlapCurvedE2ETest {
         RoadNode start = network.createNode(path.getFirst());
         RoadNode end = network.createNode(path.getLast());
         network.createEdge(start.getId(), end.getId(), path, road.getId());
+        double length = com.plot.plugin.road.station.RoadStationing.canonicalLength(network, road);
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 64),
+            PointOfVerticalIntersection.of(length, 64))));
         return network;
     }
 
@@ -100,13 +101,11 @@ class RoadSlopeOverlapCurvedE2ETest {
         roadA.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
         roadA.setIncludeSlopeBatter(true);
         roadA.setMaxSlope(40.0f);
-        roadA.setVerticalAlignment(flatProfile(64));
 
         Road roadB = network.createRoad("arc-b");
         roadB.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
         roadB.setIncludeSlopeBatter(true);
         roadB.setMaxSlope(40.0f);
-        roadB.setVerticalAlignment(flatProfile(64));
 
         List<Vec2d> arcA = sampleArc(new Vec2d(10, 22), 14, -Math.PI / 3, Math.PI / 6, 18);
         List<Vec2d> arcB = sampleArc(new Vec2d(22, 10), 14, Math.PI * 2 / 3, Math.PI * 7 / 6, 18);
@@ -114,10 +113,12 @@ class RoadSlopeOverlapCurvedE2ETest {
         RoadNode aStart = network.createNode(arcA.getFirst());
         RoadNode aEnd = network.createNode(arcA.getLast());
         network.createEdge(aStart.getId(), aEnd.getId(), arcA, roadA.getId());
+        roadA.setVerticalAlignment(flatProfileCovering(network, roadA, 64));
 
         RoadNode bStart = network.createNode(arcB.getFirst());
         RoadNode bEnd = network.createNode(arcB.getLast());
         network.createEdge(bStart.getId(), bEnd.getId(), arcB, roadB.getId());
+        roadB.setVerticalAlignment(flatProfileCovering(network, roadB, 64));
         return network;
     }
 
@@ -137,6 +138,14 @@ class RoadSlopeOverlapCurvedE2ETest {
         return new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0, elevation),
             PointOfVerticalIntersection.of(80, elevation)));
+    }
+
+    private static RoadVerticalAlignment flatProfileCovering(
+            RoadNetwork network, Road road, int elevation) {
+        double length = com.plot.plugin.road.station.RoadStationing.canonicalLength(network, road);
+        return new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, elevation),
+            PointOfVerticalIntersection.of(length, elevation)));
     }
 
     private static int countVerticalEmbankmentWalls(

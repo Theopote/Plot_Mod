@@ -79,7 +79,10 @@ public final class VerticalProfileGenerationPolicy {
             if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
                 com.plot.plugin.road.vertical.FlatVerticalIntentSupport.resolveIntent(generationNetwork, road);
             }
-            if (ResolvedProfileAuthority.usesEditedProfileForGeneration(generationNetwork, road)) {
+            // Keep claimed EDITED curves (even illegal/incomplete) so generation can fail closed
+            // instead of silently stripping into AUTO terrain solve.
+            if (ResolvedProfileAuthority.usesEditedProfileForGeneration(generationNetwork, road)
+                    || ResolvedProfileAuthority.claimsEditedProfile(road)) {
                 continue;
             }
             if (road.getVerticalAlignment() != null && !road.getVerticalAlignment().isEmpty()) {

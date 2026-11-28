@@ -58,10 +58,14 @@ public final class EditedProfileRebindValidator {
         return validate(network, road, config) == null;
     }
 
-    private static boolean coversCanonicalLength(
+    /** True when VA endpoints cover canonical stations 0–L within tolerance. */
+    public static boolean coversCanonicalLength(
             RoadNetwork network,
             Road road,
             RoadVerticalAlignment alignment) {
+        if (network == null || road == null || alignment == null || alignment.isEmpty()) {
+            return false;
+        }
         double length = RoadStationing.canonicalLength(network, road);
         if (!Double.isFinite(length) || length <= ENDPOINT_STATION_TOLERANCE) {
             return false;

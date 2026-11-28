@@ -8,6 +8,7 @@ import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.RoadTestFixtures;
 import com.plot.plugin.road.vertical.FlatVerticalIntent;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
@@ -59,6 +60,7 @@ class RoadVoxelProfileCompilerTest {
         RoadNode b = network.createNode(new Vec2d(40, 0));
         network.createEdge(a.getId(), mid.getId(), java.util.List.of(a.getPosition(), mid.getPosition()), road.getId());
         network.createEdge(mid.getId(), b.getId(), java.util.List.of(mid.getPosition(), b.getPosition()), road.getId());
+        RoadTestFixtures.confirmEditedProfileGeometry(network, road);
 
         VoxelProfileCompileResult result = compile(network, road);
         assertTrue(result.feasible());
@@ -80,6 +82,7 @@ class RoadVoxelProfileCompilerTest {
         RoadNode a = network.createNode(new Vec2d(0, 0));
         RoadNode b = network.createNode(new Vec2d(30, 0));
         network.createEdge(a.getId(), b.getId(), java.util.List.of(a.getPosition(), b.getPosition()), road.getId());
+        RoadTestFixtures.confirmEditedProfileGeometry(network, road);
 
         VoxelProfileCompileResult result = compile(network, road);
         assertTrue(result.hasSamples());

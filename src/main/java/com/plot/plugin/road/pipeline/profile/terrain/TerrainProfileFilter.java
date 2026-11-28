@@ -34,7 +34,7 @@ public final class TerrainProfileFilter {
 
     /**
      * 将 raw 地形中的块级台阶在 trend 上展开为有限长度的线性过渡，避免趋势线在台阶处仍保留尖角。
-     * 过渡长度会随高差自动拉长，保证趋势坡度不超过参考纵坡。
+     * 过渡长度会随高差自动拉长，保证趋势坡度不超过参考纵坡；过渡方向保留原台阶升降号。
      */
     public static List<Double> spreadStepTransitions(
             TerrainProfileSampleChain chain,
@@ -44,14 +44,30 @@ public final class TerrainProfileFilter {
             chain,
             trend,
             transitionMeters,
-            DEFAULT_STEP_THRESHOLD_BLOCKS);
+            DEFAULT_STEP_THRESHOLD_BLOCKS,
+            REFERENCE_GRADE_PERCENT);
+    }
+
+    /** Same as {@link #spreadStepTransitions(TerrainProfileSampleChain, List, double)} with explicit grade %. */
+    public static List<Double> spreadStepTransitions(
+            TerrainProfileSampleChain chain,
+            List<Double> trend,
+            double transitionMeters,
+            double referenceGradePercent) {
+        return spreadStepTransitions(
+            chain,
+            trend,
+            transitionMeters,
+            DEFAULT_STEP_THRESHOLD_BLOCKS,
+            referenceGradePercent);
     }
 
     public static List<Double> spreadStepTransitions(
             TerrainProfileSampleChain chain,
             List<Double> trend,
             double transitionMeters,
-            double stepThresholdBlocks) {
+            double stepThresholdBlocks,
+            double referenceGradePercent) {
         if (chain == null || chain.isEmpty() || trend == null || trend.isEmpty()) {
             return trend != null ? List.copyOf(trend) : List.of();
         }
@@ -69,6 +85,9 @@ public final class TerrainProfileFilter {
         if (roadLength <= EPSILON) {
             return adjusted;
         }
+        double gradePercent = referenceGradePercent > EPSILON
+            ? referenceGradePercent
+            : REFERENCE_GRADE_PERCENT;
 
         for (int i = 1; i < raw.size(); i++) {
             if (Math.abs(raw.get(i) - raw.get(i - 1)) + EPSILON < stepThresholdBlocks) {
@@ -79,18 +98,13 @@ public final class TerrainProfileFilter {
             }
             double stepStation = (stations.get(i) + stations.get(i - 1)) * 0.5;
             double plateauWindow = Math.max(transitionMeters * 0.5, averageSpacing(chain));
-            double lowLevel = plateauAverage(stations, raw, stepStation - plateauWindow * 2.0, stepStation);
-            double highLevel = plateauAverage(stations, raw, stepStation, stepStation + plateauWindow * 2.0);
-            if (lowLevel > highLevel) {
-                double swap = lowLevel;
-                lowLevel = highLevel;
-                highLevel = swap;
-            }
-            double elevationDelta = highLevel - lowLevel;
-            if (elevationDelta <= EPSILON) {
+            double leftLevel = plateauAverage(stations, raw, stepStation - plateauWindow * 2.0, stepStation);
+            double rightLevel = plateauAverage(stations, raw, stepStation, stepStation + plateauWindow * 2.0);
+            double elevationDelta = rightLevel - leftLevel;
+            if (Math.abs(elevationDelta) <= EPSILON) {
                 continue;
             }
-            double slopeLimitedLength = elevationDelta / (REFERENCE_GRADE_PERCENT / 100.0);
+            double slopeLimitedLength = Math.abs(elevationDelta) / (gradePercent / 100.0);
             double effectiveTransition = Math.max(transitionMeters, slopeLimitedLength);
             if (effectiveTransition > roadLength * MAX_ROAD_FRACTION_FOR_STEP_SPREAD) {
                 continue;
@@ -117,7 +131,7 @@ public final class TerrainProfileFilter {
                     continue;
                 }
                 double blend = (station - transitionStart) / (transitionEnd - transitionStart);
-                adjusted.set(j, lowLevel + elevationDelta * blend);
+                adjusted.set(j, leftLevel + elevationDelta * blend);
             }
         }
         return adjusted;

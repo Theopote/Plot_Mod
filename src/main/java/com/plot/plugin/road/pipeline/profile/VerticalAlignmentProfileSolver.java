@@ -241,10 +241,16 @@ public final class VerticalAlignmentProfileSolver {
         boolean manualEndpointConstraintFeasible;
         boolean waterConstraintFeasible;
         RoadHeightRasterizer.RasterizationResult raster;
+        // EDITED (MANUAL_PROFILE) and confirmed FLAT hold the design Y; diagnose water/endpoints.
         boolean followDesign = effectiveMode == RoadVerticalMode.MANUAL_PROFILE
+            || effectiveMode == RoadVerticalMode.FLAT
             || sampleData.fullyUnloaded();
         if (followDesign) {
             designElevations = candidateDesign;
+            EnvironmentFeasibilityProjector.FlattenPolicy waterPolicy =
+                effectiveMode == RoadVerticalMode.FLAT
+                    ? EnvironmentFeasibilityProjector.FlattenPolicy.STRICT_MANUAL
+                    : EnvironmentFeasibilityProjector.FlattenPolicy.NONE;
             waterConstraintFeasible = EnvironmentFeasibilityProjector.evaluateWaterFeasibility(
                 designElevations,
                 solverEnvironment,
@@ -252,10 +258,11 @@ public final class VerticalAlignmentProfileSolver {
                 waterSettings,
                 manualStartHeight,
                 manualEndHeight,
-                EnvironmentFeasibilityProjector.FlattenPolicy.NONE);
-            manualEndpointConstraintFeasible = true;
+                waterPolicy);
+            manualEndpointConstraintFeasible = endpointsCompatibleWithDesign(
+                designElevations, manualStartHeight, manualEndHeight);
             raster = RoadHeightRasterizer.followDesign(
-                designElevations, segmentDistances, manualStartHeight);
+                designElevations, segmentDistances, null);
         } else {
             EnvironmentFeasibilityProjector.FlattenPolicy flattenPolicy =
                 resolveFlattenPolicy(effectiveMode, manualStartHeight, manualEndHeight);
@@ -326,11 +333,16 @@ public final class VerticalAlignmentProfileSolver {
             waterCrossingMarkers);
     }
 
+    private static final double ENDPOINT_COMPAT_TOLERANCE = 0.51;
+
     private static List<Double> buildDesignProfileElevations(
             ProfileGroundSampler.SampleData sampleData,
-            Integer manualStartHeight,
-            Integer manualEndHeight,
+            @SuppressWarnings("unused") Integer manualStartHeight,
+            @SuppressWarnings("unused") Integer manualEndHeight,
             DesignElevationSource designElevation) {
+        // Confirmed design elevations are authoritative: do not replace endpoints with
+        // manualStart/End here (that invents steep micro-ramps). Compatibility is reported
+        // separately via endpointsCompatibleWithDesign.
         List<Double> elevations = new ArrayList<>(sampleData.groundSamples().size());
         double sampledPathLength = sampleData.cumulativeDistances().isEmpty()
             ? 0.0
@@ -349,15 +361,27 @@ public final class VerticalAlignmentProfileSolver {
             double target = geometryElevation.isPresent()
                 ? geometryElevation.getAsDouble()
                 : designElevation.elevationAtChainage(chainage);
-            if (i == 0 && manualStartHeight != null) {
-                target = manualStartHeight;
-            }
-            if (i == sampleData.groundSamples().size() - 1 && manualEndHeight != null) {
-                target = manualEndHeight;
-            }
             elevations.add(target);
         }
         return elevations;
+    }
+
+    static boolean endpointsCompatibleWithDesign(
+            List<Double> designElevations,
+            Integer manualStartHeight,
+            Integer manualEndHeight) {
+        if (designElevations == null || designElevations.isEmpty()) {
+            return manualStartHeight == null && manualEndHeight == null;
+        }
+        if (manualStartHeight != null
+                && Math.abs(designElevations.getFirst() - manualStartHeight) > ENDPOINT_COMPAT_TOLERANCE) {
+            return false;
+        }
+        if (manualEndHeight != null
+                && Math.abs(designElevations.getLast() - manualEndHeight) > ENDPOINT_COMPAT_TOLERANCE) {
+            return false;
+        }
+        return true;
     }
 
     private static EnvironmentProfile collectDenseEnvironment(
@@ -384,11 +408,9 @@ public final class VerticalAlignmentProfileSolver {
             RoadVerticalMode verticalMode,
             Integer manualStartHeight,
             Integer manualEndHeight) {
+        // User / network FLAT must hold confirmed Y; never silent AUTO_RAISE over water.
         if (verticalMode == RoadVerticalMode.FLAT) {
-            if (manualStartHeight != null || manualEndHeight != null) {
-                return EnvironmentFeasibilityProjector.FlattenPolicy.STRICT_MANUAL;
-            }
-            return EnvironmentFeasibilityProjector.FlattenPolicy.AUTO_RAISE_UNIFORM;
+            return EnvironmentFeasibilityProjector.FlattenPolicy.STRICT_MANUAL;
         }
         if (manualStartHeight != null
                 && manualStartHeight.equals(manualEndHeight)) {

@@ -92,6 +92,54 @@ class ResolvedProfileAuthorityTest {
         assertFalse(ResolvedProfileAuthority.usesEditedProfileForGeneration(network, road));
     }
 
+    /** VA-A01: full-coverage confirmed EDITED remains valid for generation. */
+    @Test
+    void fullCoverageEditedProfileIsValid() {
+        RoadNetwork network = buildRoadWithAlignment(ProfileSource.EDITED);
+        Road road = network.getRoad("r1");
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
+
+        assertTrue(ResolvedProfileAuthority.hasValidEditedProfile(network, road));
+        assertEquals(
+            ResolvedProfileAuthority.EditedValidity.VALID,
+            ResolvedProfileAuthority.evaluateEditedValidity(network, road));
+        assertTrue(ResolvedProfileAuthority.usesEditedProfileForGeneration(network, road));
+    }
+
+    /** VA-A05: network-wide uniform elevation resolves as FLAT authority. */
+    @Test
+    void networkUniformFlatResolvesAsFlatAuthority() {
+        RoadNetwork network = buildRoadWithAlignment(ProfileSource.AUTO);
+        network.setElevationMode(com.plot.plugin.road.model.NetworkElevationMode.UNIFORM_FLAT);
+        network.setUniformElevationY(72);
+        Road road = network.getRoad("r1");
+
+        assertEquals(
+            ResolvedProfileAuthority.Kind.FLAT,
+            ResolvedProfileAuthority.resolve(network, road).kind());
+        assertFalse(ResolvedProfileAuthority.usesEditedProfileForGeneration(network, road));
+    }
+
+    /** VA-A02: VA covering only part of the road is not a valid EDITED profile. */
+    @Test
+    void partialCoverageEditedProfileIsIllegalClaim() {
+        RoadNetwork network = buildRoadWithAlignment(ProfileSource.EDITED);
+        Road road = network.getRoad("r1");
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(10.0, 70.0),
+            PointOfVerticalIntersection.of(30.0, 74.0))));
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
+
+        assertFalse(ResolvedProfileAuthority.hasValidEditedProfile(network, road));
+        assertEquals(
+            ResolvedProfileAuthority.EditedValidity.INCOMPLETE_COVERAGE,
+            ResolvedProfileAuthority.evaluateEditedValidity(network, road));
+        assertTrue(ResolvedProfileAuthority.isIllegalEditedClaim(network, road));
+        assertFalse(ResolvedProfileAuthority.invalidateEditedProfileIfStale(network, road));
+        assertEquals(ProfileSource.EDITED, road.getEffectiveProfileSource());
+        assertFalse(ResolvedProfileAuthority.canActivateEditedProfile(network, road));
+    }
+
     private static RoadNetwork buildRoadWithAlignment(ProfileSource source) {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("r1");

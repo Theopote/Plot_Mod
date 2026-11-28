@@ -5,7 +5,6 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.FlatVerticalIntentSupport;
 import com.plot.plugin.road.vertical.ResolvedProfileAuthority;
-import com.plot.plugin.road.vertical.RoadVerticalMode;
 
 /**
  * 判断是否对当前道路启用设计纵断面求解。
@@ -26,10 +25,11 @@ public final class VerticalAlignmentProfileSupport {
         if (!RoadStationing.domainMap(network, road).isReliable()) {
             return false;
         }
-        RoadVerticalMode mode = road.getVerticalMode();
-        if (mode == RoadVerticalMode.FLAT) {
-            return FlatVerticalIntentSupport.resolveIntent(network, road) != null;
-        }
-        return ResolvedProfileAuthority.usesEditedProfileForGeneration(network, road);
+        ResolvedProfileAuthority.Kind kind = ResolvedProfileAuthority.resolve(network, road).kind();
+        return switch (kind) {
+            case EDITED -> true;
+            case FLAT -> FlatVerticalIntentSupport.resolveIntent(network, road) != null;
+            case AUTO -> false;
+        };
     }
 }

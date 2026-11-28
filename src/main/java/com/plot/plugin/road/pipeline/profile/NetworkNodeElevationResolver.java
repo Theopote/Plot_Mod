@@ -51,8 +51,8 @@ public final class NetworkNodeElevationResolver {
         }
 
         Map<String, List<Integer>> naturalHeightsByNode = collectNaturalHeights(network, terrain);
-        Map<String, Integer> designedTargets = collectDesignedTargets(network, terrain);
-        designedTargets.forEach((id, y) -> naturalHeightsByNode.put(id, List.of(y)));
+        DesignedElevationConsensus designed = collectDesignedTargets(network, terrain);
+        designed.targets().forEach((id, y) -> naturalHeightsByNode.put(id, List.of(y)));
         Map<String, List<JunctionFeasibleElevationResolver.ApproachConstraint>> approachConstraints =
             collectApproachConstraints(network);
 
@@ -69,7 +69,48 @@ public final class NetworkNodeElevationResolver {
                 continue;
             }
             if (node.getManualElevation() != null) {
-                resolved.put(node.getId(), node.getManualElevation().intValue());
+                int locked = node.getManualElevation().intValue();
+                Integer designedY = designed.targets().get(node.getId());
+                boolean userLock = node.getManualElevationOrigin()
+                    == com.plot.plugin.road.model.ManualElevationOrigin.USER;
+                if (userLock) {
+                    if (designed.conflicts().contains(node.getId())
+                            || (designedY != null
+                                && Math.abs(designedY - locked)
+                                    > RoadSlopeUtils.JunctionHeightResolution.SIGNIFICANT_SPREAD_THRESHOLD)) {
+                        // USER lock vs EDITED design hard conflict: do not silently pick one.
+                        if (mismatchLogger != null) {
+                            mismatchLogger.logSignificantMismatch(
+                                node.getId(),
+                                List.of(locked, designedY != null ? designedY : locked),
+                                designedY != null ? Math.abs(designedY - locked) : 0,
+                                locked);
+                        }
+                        continue;
+                    }
+                    resolved.put(node.getId(), locked);
+                    continue;
+                }
+                // Propagated/derived locks yield to a valid EDITED consensus.
+                if (designedY != null) {
+                    resolved.put(node.getId(), designedY);
+                    continue;
+                }
+                if (designed.conflicts().contains(node.getId())) {
+                    continue;
+                }
+                resolved.put(node.getId(), locked);
+                continue;
+            }
+            // Two valid EDITED designs that disagree: never average into a fake consensus.
+            if (designed.conflicts().contains(node.getId())) {
+                List<Integer> conflictSamples = designed.conflictSamples().getOrDefault(node.getId(), List.of());
+                if (mismatchLogger != null && !conflictSamples.isEmpty()) {
+                    RoadSlopeUtils.JunctionHeightResolution resolution =
+                        RoadSlopeUtils.resolveJunctionHeight(conflictSamples);
+                    mismatchLogger.logSignificantMismatch(
+                        node.getId(), conflictSamples, resolution.spread(), resolution.height());
+                }
                 continue;
             }
             List<Integer> samples = naturalHeightsByNode.getOrDefault(node.getId(), List.of());
@@ -88,26 +129,35 @@ public final class NetworkNodeElevationResolver {
             }
             resolved.put(node.getId(), resolution.height());
         }
+        java.util.Set<String> designedPinned = new java.util.LinkedHashSet<>(designed.targets().keySet());
+        // Conflict nodes stay unresolved — refine must not invent an average for them.
+        designedPinned.addAll(designed.conflicts());
         resolved = JunctionFeasibleElevationResolver.refine(
             network,
             naturalHeightsByNode,
             approachConstraints,
             resolved,
-            designedTargets.keySet());
+            designedPinned);
         Map<String, List<Integer>> pinnedNaturalHeights =
             collectNaturalHeightsWithPinnedJunctions(network, terrain, resolved);
-        designedTargets.forEach((id, y) -> pinnedNaturalHeights.put(id, List.of(y)));
+        designed.targets().forEach((id, y) -> pinnedNaturalHeights.put(id, List.of(y)));
         Map<String, Integer> refined = JunctionFeasibleElevationResolver.refine(
             network,
             pinnedNaturalHeights,
             approachConstraints,
             resolved,
-            designedTargets.keySet());
+            designedPinned);
         return AutomaticNodeElevationContinuity.project(network, approachConstraints, refined);
     }
 
+    private record DesignedElevationConsensus(
+            Map<String, Integer> targets,
+            java.util.Set<String> conflicts,
+            Map<String, List<Integer>> conflictSamples) {
+    }
+
     /** A saved design is a constraint; an AUTO terrain estimate is only a preference. */
-    private Map<String, Integer> collectDesignedTargets(RoadNetwork network, TerrainSampler terrain) {
+    private DesignedElevationConsensus collectDesignedTargets(RoadNetwork network, TerrainSampler terrain) {
         Map<String, List<Integer>> samples = new LinkedHashMap<>();
         for (RoadEdge edge : network.getEdges().values()) {
             for (String id : List.of(edge.getStartNodeId(), edge.getEndNodeId())) {
@@ -119,20 +169,25 @@ public final class NetworkNodeElevationResolver {
             }
         }
         Map<String, Integer> targets = new LinkedHashMap<>();
+        java.util.Set<String> conflicts = new java.util.LinkedHashSet<>();
+        Map<String, List<Integer>> conflictSamples = new LinkedHashMap<>();
         samples.forEach((id, values) -> {
             if (values == null || values.isEmpty()) {
                 return;
             }
             // 有设计纵断面时只用设计样本决议，避免无 VA 的贴地边把平交口均值拉低。
-            // 设计之间散布过大仍留给后续冲突诊断（不写入 targets）。
+            // 设计之间散布过大：硬冲突，禁止平均写入 targets。
             RoadSlopeUtils.JunctionHeightResolution resolution =
                 RoadSlopeUtils.resolveJunctionHeight(values);
             if (resolution.spread()
                     <= RoadSlopeUtils.JunctionHeightResolution.SIGNIFICANT_SPREAD_THRESHOLD) {
                 targets.put(id, resolution.height());
+            } else {
+                conflicts.add(id);
+                conflictSamples.put(id, List.copyOf(values));
             }
         });
-        return targets;
+        return new DesignedElevationConsensus(targets, conflicts, conflictSamples);
     }
 
     public int junctionTargetHeight(RoadNode node, RoadNetwork network, TerrainSampler terrain) {

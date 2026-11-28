@@ -35,9 +35,9 @@ public final class RoadGoldenExpectations {
     public static final RoadGoldenMetrics R06 = new RoadGoldenMetrics(
         244, 84, 0, 0, 0, 0, 0, 0, 84, 244, 0, 0, List.of());
 
-    // FIT_TERRAIN after acute corner gore stamps and clearance designY floor fix.
+    // FIT_TERRAIN after Phase 2.4.5.1 V04/V05 terrain-trend sign/blend fixes.
     public static final RoadGoldenMetrics R07 = new RoadGoldenMetrics(
-        209, 49, 35, 0, 0, 37, 0, 35, 49, 244, 0, 0, List.of());
+        188, 28, 40, 0, 0, 42, 0, 40, 28, 228, 0, 0, List.of());
 
     // Bridge/tunnel：行车道宽改为车道驱动打包后，桥面/支撑块数随派生半宽收敛。
     public static final RoadGoldenMetrics R08 = new RoadGoldenMetrics(
