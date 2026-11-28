@@ -732,9 +732,8 @@ public final class RoadStationDataTransforms {
             if (station.isEmpty() || !Double.isFinite(station.getAsDouble())) {
                 return false;
             }
-            ResolvedCrossSection actual = VariableCrossSectionResolver.resolve(
-                network, road, station.getAsDouble(), defaults);
-            if (anchor.expectedResolved() == null || !anchor.expectedResolved().displayEquals(actual)) {
+            if (!resolvedSectionMatchesExpected(
+                    network, road, station.getAsDouble(), anchor.expectedResolved(), defaults)) {
                 return false;
             }
             checked++;
@@ -769,6 +768,44 @@ public final class RoadStationDataTransforms {
             }
         }
         return true;
+    }
+
+    /**
+     * Match resolved section at a station. STEP seams are unilateral: expected may equal the
+     * left (station−δ) or right (station) side, never both templates at once (S02).
+     * SMOOTH stays a single-point match.
+     */
+    private static boolean resolvedSectionMatchesExpected(
+            RoadNetwork network,
+            Road road,
+            double station,
+            ResolvedCrossSection expected,
+            RoadSystemConfig defaults) {
+        if (expected == null || !Double.isFinite(station)) {
+            return false;
+        }
+        ResolvedCrossSection at = VariableCrossSectionResolver.resolve(
+            network, road, station, defaults);
+        if (expected.displayEquals(at)) {
+            return true;
+        }
+        if (!isStepTransition(road)) {
+            return false;
+        }
+        double delta = Math.max(EPSILON * 10.0, 1e-4);
+        double leftStation = Math.max(0.0, station - delta);
+        ResolvedCrossSection left = VariableCrossSectionResolver.resolve(
+            network, road, leftStation, defaults);
+        return expected.displayEquals(left) || expected.displayEquals(at);
+    }
+
+    private static boolean isStepTransition(Road road) {
+        if (road == null || road.getVariableCrossSections() == null
+                || road.getVariableCrossSections().isEmpty()) {
+            return false;
+        }
+        return road.getVariableCrossSections().getTransitionMode()
+            != VariableCrossSectionTransitionMode.SMOOTH;
     }
 
     /** Clip facility intervals to {@code [rangeStart, rangeEnd)} then shift by {@code -rangeStart}. */
@@ -994,16 +1031,31 @@ public final class RoadStationDataTransforms {
         }
     }
 
-    /** Ordered physical station span of one oriented edge slice (LOOP may emit two for one edgeId). */
+    /**
+     * Ordered physical station span of one oriented edge slice (LOOP may emit two for one edgeId).
+     * {@code entryNodeId}/{@code exitNodeId} are the pre-delete design walk endpoints (S01).
+     */
     public record EdgeStationSpan(
             String edgeId,
             double start,
             double end,
             int sliceIndex,
             double nativeStart,
-            double nativeEnd) {
+            double nativeEnd,
+            String entryNodeId,
+            String exitNodeId) {
         public EdgeStationSpan(String edgeId, double start, double end, int sliceIndex) {
-            this(edgeId, start, end, sliceIndex, Double.NaN, Double.NaN);
+            this(edgeId, start, end, sliceIndex, Double.NaN, Double.NaN, null, null);
+        }
+
+        public EdgeStationSpan(
+                String edgeId,
+                double start,
+                double end,
+                int sliceIndex,
+                double nativeStart,
+                double nativeEnd) {
+            this(edgeId, start, end, sliceIndex, nativeStart, nativeEnd, null, null);
         }
 
         public boolean isValid() {
@@ -1016,6 +1068,11 @@ public final class RoadStationDataTransforms {
 
         public boolean hasNativeRange() {
             return Double.isFinite(nativeStart) && Double.isFinite(nativeEnd);
+        }
+
+        public boolean hasDesignEndpoints() {
+            return entryNodeId != null && !entryNodeId.isBlank()
+                && exitNodeId != null && !exitNodeId.isBlank();
         }
     }
 

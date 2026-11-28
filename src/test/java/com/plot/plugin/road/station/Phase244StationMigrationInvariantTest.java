@@ -1033,8 +1033,9 @@ class Phase244StationMigrationInvariantTest {
                 HorizontalAlignmentElement.tangent(30.0))));
         road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0.0, 10.0),
-            PointOfVerticalIntersection.of(45.0, 11.0),
-            PointOfVerticalIntersection.of(90.0, 12.0))));
+            PointOfVerticalIntersection.of(30.0, 11.0),
+            PointOfVerticalIntersection.of(60.0, 12.0),
+            PointOfVerticalIntersection.of(90.0, 13.0))));
         assertTrue(RoadStationing.domainMap(network, road).isReliable());
         String before = network.toJson();
         manager.deleteEdge(mid);
@@ -1059,6 +1060,17 @@ class Phase244StationMigrationInvariantTest {
         assertTrue(RoadStationing.domainMap(network, tailComp).isReliable());
         assertEquals(30.0, headComp.getHorizontalAlignment().totalLength(), 1.0);
         assertEquals(30.0, tailComp.getHorizontalAlignment().totalLength(), 1.0);
+        // S01: design walk stays original head/tail entry edges, not storage-min-XY flip.
+        assertEquals(headEdge, headComp.getDesignEntryEdgeId());
+        assertEquals(tailEdge, tailComp.getDesignEntryEdgeId());
+        assertEquals(10.0,
+            headComp.getVerticalAlignment().sortedPvis().getFirst().getElevation(), EPS);
+        assertEquals(11.0,
+            headComp.getVerticalAlignment().sortedPvis().getLast().getElevation(), EPS);
+        assertEquals(12.0,
+            tailComp.getVerticalAlignment().sortedPvis().getFirst().getElevation(), EPS);
+        assertEquals(13.0,
+            tailComp.getVerticalAlignment().sortedPvis().getLast().getElevation(), EPS);
     }
 
     @Test
@@ -1122,6 +1134,108 @@ class Phase244StationMigrationInvariantTest {
                 HorizontalAlignmentElement.spiral(30.0, 40.0),
                 HorizontalAlignmentElement.tangent(20.0)));
         assertNull(HorizontalAlignmentGeometry.reverse(withSpiral));
+    }
+
+    @Test
+    void deleteHeadOpposedStorageKeepsDesignDirectionAndVaClimb() {
+        // Edges stored reverse of design A→B→C (S01).
+        Road road = network.createRoad("opposed-del");
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(40, 0));
+        RoadNode c = network.createNode(new Vec2d(80, 0));
+        String e1 = network.createEdge(b.getId(), a.getId(),
+            List.of(new Vec2d(40, 0), new Vec2d(0, 0)), road.getId()).getId();
+        String e2 = network.createEdge(c.getId(), b.getId(),
+            List.of(new Vec2d(80, 0), new Vec2d(40, 0)), road.getId()).getId();
+        road.setDesignEntryEdgeId(e1);
+        road.setDesignEntryNodeId(a.getId());
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 64.0),
+            PointOfVerticalIntersection.of(40.0, 68.0),
+            PointOfVerticalIntersection.of(80.0, 72.0))));
+        assertEquals(a.getId(), RoadStationing.chainEntryNodeId(network, road).orElseThrow());
+        manager.deleteEdge(e1);
+        network = manager.getNetwork();
+        Road after = network.getRoad(road.getId());
+        assertNotNull(after);
+        assertEquals(e2, after.getDesignEntryEdgeId());
+        assertEquals(b.getId(), after.getDesignEntryNodeId());
+        assertEquals(b.getId(), RoadStationing.chainEntryNodeId(network, after).orElseThrow());
+        assertEquals(c.getId(), RoadStationing.chainExitNodeId(network, after).orElseThrow());
+        // Keep [40,80] → stations remapped; climb 68→72 must not mirror to descent.
+        assertEquals(68.0, after.getVerticalAlignment().sortedPvis().getFirst().getElevation(), EPS);
+        assertEquals(72.0, after.getVerticalAlignment().sortedPvis().getLast().getElevation(), EPS);
+        assertTrue(after.getVerticalAlignment().sortedPvis().getLast().getElevation()
+            > after.getVerticalAlignment().sortedPvis().getFirst().getElevation());
+    }
+
+    @Test
+    void deleteHeadKeepsGuardrailAndVcsOnRetainedRange() {
+        Road road = linearRoad(2, 40.0);
+        String head = road.getOrderedSegmentIds().getFirst();
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 10.0),
+            PointOfVerticalIntersection.of(40.0, 11.0),
+            PointOfVerticalIntersection.of(80.0, 12.0))));
+        road.setVariableCrossSections(new RoadVariableCrossSections(List.of(
+            StationCrossSection.at(0.0, section(8)),
+            StationCrossSection.at(50.0, section(12))),
+            VariableCrossSectionTransitionMode.STEP));
+        road.setStationFacilities(new RoadStationFacilities(List.of(
+            StationFacilityRun.of(45.0, 70.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.LEFT))));
+        manager.deleteEdge(head);
+        network = manager.getNetwork();
+        Road after = network.getRoad(road.getId());
+        assertNotNull(after);
+        assertNotNull(after.getStationFacilities());
+        StationFacilityRun run = after.getStationFacilities().sortedRuns().getFirst();
+        assertEquals(5.0, run.getStartStation(), EPS);
+        assertEquals(30.0, run.getEndStation(), EPS);
+        RoadSystemConfig cfg = new RoadSystemConfig("phase244");
+        assertEquals(12,
+            VariableCrossSectionResolver.resolve(
+                after.getCrossSection(),
+                after.getVariableCrossSections().sortedStations(),
+                VariableCrossSectionTransitionMode.STEP,
+                10.0,
+                cfg).carriagewayWidth);
+    }
+
+    @Test
+    void managerMergeDifferentDefaultStepWidthsSucceeds() {
+        Road head = network.createRoad("step-head");
+        RoadNode h0 = network.createNode(new Vec2d(0, 0));
+        RoadNode h1 = network.createNode(new Vec2d(50, 0));
+        network.createEdge(h0.getId(), h1.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(50, 0)), head.getId());
+        head.setCrossSection(section(6));
+        head.setMaterial(MaterialMix.single("minecraft:black_concrete"));
+        head.setDesignEntryEdgeId(head.getOrderedSegmentIds().getFirst());
+        head.setDesignEntryNodeId(h0.getId());
+
+        Road tail = network.createRoad("step-tail");
+        RoadNode t1 = network.createNode(new Vec2d(100, 0));
+        network.createEdge(h1.getId(), t1.getId(),
+            List.of(new Vec2d(50, 0), new Vec2d(100, 0)), tail.getId());
+        tail.setCrossSection(section(12));
+        tail.setMaterial(MaterialMix.single("minecraft:gray_concrete"));
+        tail.setDesignEntryEdgeId(tail.getOrderedSegmentIds().getFirst());
+        tail.setDesignEntryNodeId(h1.getId());
+
+        String merged = manager.mergeRoadTailIntoHead(head.getId(), tail.getId());
+        network = manager.getNetwork();
+        assertEquals(head.getId(), merged);
+        Road after = network.getRoad(head.getId());
+        assertNotNull(after);
+        RoadSystemConfig cfg = new RoadSystemConfig("phase244");
+        assertEquals(6,
+            VariableCrossSectionResolver.resolve(network, after, 25.0, cfg).carriagewayWidth);
+        assertEquals(12,
+            VariableCrossSectionResolver.resolve(network, after, 75.0, cfg).carriagewayWidth);
+        assertEquals(6,
+            VariableCrossSectionResolver.resolve(network, after, 50.0 - 1e-3, cfg).carriagewayWidth);
+        assertEquals(12,
+            VariableCrossSectionResolver.resolve(network, after, 50.0, cfg).carriagewayWidth);
     }
 
     private static RoadCrossSection section(int width) {

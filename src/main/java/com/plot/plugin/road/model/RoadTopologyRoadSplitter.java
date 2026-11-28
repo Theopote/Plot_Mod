@@ -376,6 +376,21 @@ public final class RoadTopologyRoadSplitter {
             return -1;
         }
         boolean mapStationData = snapshot.hasPhase2Data() && totalLength > 1e-6;
+        // Physical anchors need a stationable chain; branching/disconnected repairs verify via
+        // applyRangeTo dry-run here and Manager post-verify after components are stationable (S03).
+        boolean physicalVerify = mapStationData && RoadStationing.isStationable(network, road);
+        var vaCap = physicalVerify
+            ? RoadStationDataTransforms.captureVaPhysicalAnchors(network, road)
+            : RoadStationDataTransforms.VaAnchorCapture.none();
+        if (vaCap.failed()) {
+            return -1;
+        }
+        var alongCap = physicalVerify
+            ? RoadStationDataTransforms.captureAlongTrackPhysicalAnchors(network, road)
+            : RoadStationDataTransforms.AlongTrackAnchorCapture.none();
+        if (alongCap.failed()) {
+            return -1;
+        }
 
         List<List<StationRange>> componentRanges = new ArrayList<>(components.size());
         for (Set<String> component : components) {
@@ -464,17 +479,62 @@ public final class RoadTopologyRoadSplitter {
 
         if (mapStationData && snapshot.hadHorizontalAlignment()) {
             RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(network, road);
-            if (road.getHorizontalAlignment() == null) {
+            if (road.getHorizontalAlignment() == null
+                    || !stationDomainReliable(network, road)) {
                 return -1;
             }
             for (Road splitRoad : splitRoads) {
                 RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(network, splitRoad);
-                if (splitRoad.getHorizontalAlignment() == null) {
+                if (splitRoad.getHorizontalAlignment() == null
+                        || !stationDomainReliable(network, splitRoad)) {
                     return -1;
                 }
             }
         }
         if (mapStationData) {
+            if (physicalVerify) {
+                for (int i = 0; i < components.size(); i++) {
+                    Road part = i == keepIndex ? road : null;
+                    if (part == null) {
+                        for (Road splitRoad : splitRoads) {
+                            if (componentOwnsAny(splitRoad, components.get(i))) {
+                                part = splitRoad;
+                                break;
+                            }
+                        }
+                    }
+                    if (part == null) {
+                        return -1;
+                    }
+                    List<StationRange> runs = componentRanges.get(i);
+                    if (!vaCap.anchors().isEmpty()
+                            && !RoadStationDataTransforms.verifyVaPhysicalAnchors(
+                                network, part, vaCap.anchors())) {
+                        return -1;
+                    }
+                    if (!alongCap.isEmpty()) {
+                        var sectionOnly = RoadStationDataTransforms.AlongTrackAnchorCapture.ok(
+                            alongCap.sectionAnchors(), List.of());
+                        if (!sectionOnly.isEmpty()
+                                && !RoadStationDataTransforms.verifyAlongTrackPhysicalAnchors(
+                                    network, part, sectionOnly)) {
+                            return -1;
+                        }
+                        if (!alongCap.facilityIntervals().isEmpty() && runs.size() == 1) {
+                            StationRange range = runs.getFirst();
+                            double length = RoadStationing.canonicalLength(network, part);
+                            var expected = RoadStationDataTransforms.clipAndShiftFacilityIntervals(
+                                alongCap.facilityIntervals(), range.start(), range.end());
+                            var actual = RoadStationDataTransforms.captureFacilityIntervals(
+                                part, length);
+                            if (!RoadStationDataTransforms.facilityIntervalsEqual(
+                                    expected, actual)) {
+                                return -1;
+                            }
+                        }
+                    }
+                }
+            }
             if (!RoadStationDataTransforms.rebindEditedProfileAfterFinalGeometry(
                     network, road, sourceEditedValid)) {
                 return -1;
@@ -487,6 +547,26 @@ public final class RoadTopologyRoadSplitter {
             }
         }
         return created;
+    }
+
+    private static boolean stationDomainReliable(RoadNetwork network, Road road) {
+        if (road == null || road.getHorizontalAlignment() == null) {
+            return true;
+        }
+        var map = RoadStationing.domainMap(network, road);
+        return map != null && map.isReliable();
+    }
+
+    private static boolean componentOwnsAny(Road road, Set<String> component) {
+        if (road == null || component == null) {
+            return false;
+        }
+        for (String edgeId : road.getOrderedSegmentIds()) {
+            if (component.contains(edgeId)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
