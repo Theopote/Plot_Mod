@@ -623,6 +623,7 @@ public final class RoadGraphEdits {
     /**
      * 将两个交叉点合并为一个：保留 {@code survivorId}，把 {@code absorbedId} 上的边改接到 survivor。
      * 若会产生同 road 的平行重复边则拒绝合并。
+     * Atomic: work on snapshot; adopt only on full success (R04).
      */
     public Optional<String> mergeJunctionNode(String survivorId, String absorbedId) {
         if (survivorId == null || absorbedId == null || survivorId.equals(absorbedId)) {
@@ -649,7 +650,6 @@ public final class RoadGraphEdits {
             }
         }
 
-        // All-or-nothing: every connected edge must be able to relink, or reject before mutating.
         List<String> toRelink = new ArrayList<>();
         for (String edgeId : List.copyOf(absorbed.getConnectedEdgeIds())) {
             RoadEdge edge = network.getEdge(edgeId);
@@ -665,57 +665,41 @@ public final class RoadGraphEdits {
             return Optional.empty();
         }
 
+        RoadNetwork working = network.snapshot();
+        Optional<String> merged = mergeJunctionNodeMutating(working, survivorId, absorbedId, toRelink);
+        if (merged.isEmpty()) {
+            return Optional.empty();
+        }
+        network.replaceContentsFrom(working);
+        return merged;
+    }
+
+    private Optional<String> mergeJunctionNodeMutating(
+            RoadNetwork working,
+            String survivorId,
+            String absorbedId,
+            List<String> toRelink) {
+        RoadGraphEdits edits = of(working);
         List<CenterlinePhase2ConsistencyPolicy.JunctionMergeEdgeEdit> relinks = new ArrayList<>();
-        List<RoadEdge> snapshots = new ArrayList<>();
         for (String edgeId : toRelink) {
-            RoadEdge edge = network.getEdge(edgeId);
+            RoadEdge edge = working.getEdge(edgeId);
             if (edge == null) {
-                rollbackJunctionMerge(relinks, snapshots, absorbedId);
                 return Optional.empty();
             }
-            snapshots.add(copyEdge(edge));
-            SegmentGeometrySnapshot before = SegmentGeometrySnapshot.capture(network, edgeId);
-            if (!relinkEdgeEndpoint(edge, absorbedId, survivorId)) {
-                rollbackJunctionMerge(relinks, snapshots, absorbedId);
+            SegmentGeometrySnapshot before = SegmentGeometrySnapshot.capture(working, edgeId);
+            if (!edits.relinkEdgeEndpoint(edge, absorbedId, survivorId)) {
                 return Optional.empty();
             }
             relinks.add(new CenterlinePhase2ConsistencyPolicy.JunctionMergeEdgeEdit(edgeId, before));
         }
-        if (absorbed.getDegree() == 0) {
-            network.removeNode(absorbedId);
+        RoadNode absorbed = working.getNode(absorbedId);
+        if (absorbed != null && absorbed.getDegree() == 0) {
+            working.removeNode(absorbedId);
         }
-        if (!CenterlinePhase2ConsistencyPolicy.afterJunctionNodeMerge(network, relinks)) {
-            rollbackJunctionMerge(relinks, snapshots, absorbedId);
+        if (!CenterlinePhase2ConsistencyPolicy.afterJunctionNodeMerge(working, relinks)) {
             return Optional.empty();
         }
         return Optional.of(survivorId);
-    }
-
-    private void rollbackJunctionMerge(
-            List<CenterlinePhase2ConsistencyPolicy.JunctionMergeEdgeEdit> succeeded,
-            List<RoadEdge> snapshots,
-            String absorbedId) {
-        // Best-effort: restore snapshotted edges that were already mutated.
-        for (RoadEdge snapshot : snapshots) {
-            RoadEdge live = network.getEdge(snapshot.getId());
-            if (live == null) {
-                restoreEdge(snapshot);
-                continue;
-            }
-            // Relink back to absorbed if still present.
-            RoadNode absorbed = network.getNode(absorbedId);
-            if (absorbed == null) {
-                continue;
-            }
-            String survivorId = live.getStartNodeId().equals(absorbedId)
-                ? live.getEndNodeId()
-                : (live.getEndNodeId().equals(absorbedId) ? live.getStartNodeId() : null);
-            // Prefer restoring geometry from snapshot by detach+reattach.
-            network.unassignEdgeFromRoad(live.getId());
-            network.detachEdge(live.getId());
-            restoreEdge(snapshot);
-        }
-        succeeded.clear();
     }
 
     private boolean canRelinkEdgeEndpoint(RoadEdge edge, String oldNodeId, String newNodeId) {

@@ -190,10 +190,18 @@ public final class HorizontalAlignmentGeometry {
         };
     }
 
-    /** Reverse HA so the former end becomes the new origin (design-opposed extract). */
+    /**
+     * Reverse HA so the former end becomes the new origin (design-opposed extract).
+     * SPIRAL elements cannot be losslessly reversed — returns {@code null} (R05).
+     */
     public static RoadHorizontalAlignment reverse(RoadHorizontalAlignment alignment) {
         if (alignment == null || alignment.isEmpty()) {
             return alignment != null ? alignment.copy() : null;
+        }
+        for (HorizontalAlignmentElement element : alignment.getElements()) {
+            if (element != null && element.getType() == HorizontalAlignmentElementType.SPIRAL) {
+                return null;
+            }
         }
         double total = alignment.totalLength();
         Optional<AlignmentPose> endPose = poseAt(alignment, total);

@@ -10,7 +10,6 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.facility.RoadStationFacilities;
-import com.plot.plugin.road.model.facility.StationFacilityResolver;
 import com.plot.plugin.road.model.facility.StationFacilityRun;
 import com.plot.plugin.road.model.section.CrossSectionDraft;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
@@ -179,8 +178,14 @@ public final class RoadStationDataTransforms {
                     Optional<RoadHorizontalAlignment> tailNative =
                         HorizontalAlignmentGeometry.extractRange(sourceHa, 0.0, nativeSplit);
                     if (headNative.isPresent() && tailNative.isPresent()) {
-                        extractedHead = Optional.of(HorizontalAlignmentGeometry.reverse(headNative.get()));
-                        extractedTail = Optional.of(HorizontalAlignmentGeometry.reverse(tailNative.get()));
+                        RoadHorizontalAlignment revHead =
+                            HorizontalAlignmentGeometry.reverse(headNative.get());
+                        RoadHorizontalAlignment revTail =
+                            HorizontalAlignmentGeometry.reverse(tailNative.get());
+                        if (revHead != null && revTail != null) {
+                            extractedHead = Optional.of(revHead);
+                            extractedTail = Optional.of(revTail);
+                        }
                     }
                 } else {
                     extractedHead = HorizontalAlignmentGeometry.extractRange(sourceHa, 0.0, nativeSplit);
@@ -541,48 +546,60 @@ public final class RoadStationDataTransforms {
     }
 
     /**
-     * Lightweight VCS/facility physical pass: edge + local + resolved section/kind identity.
-     * Used when VA anchors are empty so VCS-only / facility-only roads still verify.
+     * Physical section sample: edge + local + {@link ResolvedCrossSection} (SMOOTH uses resolve, not
+     * template — R03).
      */
     public record AlongTrackIdentityAnchor(
             String edgeId,
             double localDistance,
-            RoadCrossSection expectedSection,
-            String facilityIdentity) {
-        public boolean isVcs() {
-            return expectedSection != null;
-        }
-
-        public boolean isFacility() {
-            return facilityIdentity != null && !facilityIdentity.isBlank();
-        }
+            ResolvedCrossSection expectedResolved) {
     }
 
-    public record AlongTrackAnchorCapture(List<AlongTrackIdentityAnchor> anchors, boolean failed) {
+    /** Full facility coverage interval (null endStation resolved to road length). */
+    public record FacilityIntervalAnchor(String identity, double start, double end) {
+    }
+
+    public record AlongTrackAnchorCapture(
+            List<AlongTrackIdentityAnchor> sectionAnchors,
+            List<FacilityIntervalAnchor> facilityIntervals,
+            boolean failed) {
         public static AlongTrackAnchorCapture none() {
-            return new AlongTrackAnchorCapture(List.of(), false);
+            return new AlongTrackAnchorCapture(List.of(), List.of(), false);
         }
 
         public static AlongTrackAnchorCapture failure() {
-            return new AlongTrackAnchorCapture(List.of(), true);
+            return new AlongTrackAnchorCapture(List.of(), List.of(), true);
         }
 
-        public static AlongTrackAnchorCapture ok(List<AlongTrackIdentityAnchor> anchors) {
-            return new AlongTrackAnchorCapture(List.copyOf(anchors), false);
+        public static AlongTrackAnchorCapture ok(
+                List<AlongTrackIdentityAnchor> sections,
+                List<FacilityIntervalAnchor> facilities) {
+            return new AlongTrackAnchorCapture(List.copyOf(sections), List.copyOf(facilities), false);
+        }
+
+        public boolean isEmpty() {
+            return sectionAnchors.isEmpty() && facilityIntervals.isEmpty();
         }
     }
 
-    /** Capture VCS keyframe + facility endpoint physical identities. */
     public static AlongTrackAnchorCapture captureAlongTrackPhysicalAnchors(
             RoadNetwork network,
             Road road) {
-        return captureAlongTrackPhysicalAnchors(network, road, List.of());
+        return captureAlongTrackPhysicalAnchors(network, road, List.of(), null);
     }
 
     public static AlongTrackAnchorCapture captureAlongTrackPhysicalAnchors(
             RoadNetwork network,
             Road road,
             List<Double> extraStations) {
+        return captureAlongTrackPhysicalAnchors(network, road, extraStations, null);
+    }
+
+    public static AlongTrackAnchorCapture captureAlongTrackPhysicalAnchors(
+            RoadNetwork network,
+            Road road,
+            List<Double> extraStations,
+            RoadSystemConfig defaults) {
         if (network == null || road == null) {
             return AlongTrackAnchorCapture.none();
         }
@@ -590,30 +607,35 @@ public final class RoadStationDataTransforms {
             && !road.getVariableCrossSections().isEmpty();
         boolean hasFacilities = road.getStationFacilities() != null
             && !road.getStationFacilities().isEmpty();
-        if (!hasVcs && !hasFacilities) {
+        boolean hasDefaultCs = road.getCrossSection() != null;
+        if (!hasVcs && !hasFacilities && !hasDefaultCs) {
             return AlongTrackAnchorCapture.none();
         }
         if (!RoadStationing.isStationable(network, road)) {
             return AlongTrackAnchorCapture.failure();
         }
         double length = RoadStationing.canonicalLength(network, road);
-        TreeSet<Double> vcsStations = new TreeSet<>();
+        TreeSet<Double> sectionStations = new TreeSet<>();
         if (hasVcs) {
             for (StationCrossSection entry : road.getVariableCrossSections().sortedStations()) {
                 if (entry != null && Double.isFinite(entry.getStation())) {
-                    vcsStations.add(entry.getStation());
+                    sectionStations.add(entry.getStation());
                 }
             }
+        } else if (hasDefaultCs && length > EPSILON * 2.0) {
+            sectionStations.add(0.0);
+            sectionStations.add(length * 0.5);
+            sectionStations.add(length);
         }
         if (extraStations != null) {
             for (Double s : extraStations) {
-                if (s != null && Double.isFinite(s) && hasVcs) {
-                    vcsStations.add(s);
+                if (s != null && Double.isFinite(s)) {
+                    sectionStations.add(s);
                 }
             }
         }
-        List<AlongTrackIdentityAnchor> anchors = new ArrayList<>();
-        for (double station : vcsStations) {
+        List<AlongTrackIdentityAnchor> sections = new ArrayList<>();
+        for (double station : sectionStations) {
             if (station < -EPSILON || station > length + EPSILON) {
                 continue;
             }
@@ -622,59 +644,43 @@ public final class RoadStationDataTransforms {
             if (resolved.isEmpty()) {
                 return AlongTrackAnchorCapture.failure();
             }
-            RoadCrossSection template = VariableCrossSectionResolver.resolveTemplate(road, clamped);
-            if (template == null) {
+            ResolvedCrossSection expected =
+                VariableCrossSectionResolver.resolve(network, road, clamped, defaults);
+            if (expected == null) {
                 return AlongTrackAnchorCapture.failure();
             }
-            anchors.add(new AlongTrackIdentityAnchor(
+            sections.add(new AlongTrackIdentityAnchor(
                 resolved.get().segmentId(),
                 resolved.get().localDistance(),
-                template.copy(),
-                null));
+                expected));
         }
-        if (hasFacilities) {
-            for (StationFacilityRun run : road.getStationFacilities().sortedRuns()) {
-                if (run == null) {
-                    continue;
-                }
-                if (!captureFacilityEndpoint(
-                        network, road, length, run.getStartStation(), run, anchors)) {
-                    return AlongTrackAnchorCapture.failure();
-                }
-                if (run.getEndStation() != null
-                        && !captureFacilityEndpoint(
-                            network, road, length, run.getEndStation(), run, anchors)) {
-                    return AlongTrackAnchorCapture.failure();
-                }
-            }
-        }
-        if (anchors.isEmpty()) {
+        List<FacilityIntervalAnchor> facilities = captureFacilityIntervals(road, length);
+        if ((hasVcs || hasDefaultCs) && sections.isEmpty()) {
             return AlongTrackAnchorCapture.failure();
         }
-        return AlongTrackAnchorCapture.ok(anchors);
+        if (hasFacilities && facilities.isEmpty()) {
+            return AlongTrackAnchorCapture.failure();
+        }
+        return AlongTrackAnchorCapture.ok(sections, facilities);
     }
 
-    private static boolean captureFacilityEndpoint(
-            RoadNetwork network,
-            Road road,
-            double length,
-            double station,
-            StationFacilityRun run,
-            List<AlongTrackIdentityAnchor> anchors) {
-        if (!Double.isFinite(station) || station < -EPSILON || station > length + EPSILON) {
-            return false;
+    public static List<FacilityIntervalAnchor> captureFacilityIntervals(Road road, double length) {
+        if (road == null || road.getStationFacilities() == null
+                || road.getStationFacilities().isEmpty()) {
+            return List.of();
         }
-        double clamped = Math.max(0.0, Math.min(station, length));
-        Optional<SegmentStation> resolved = RoadStationing.resolve(network, road, clamped);
-        if (resolved.isEmpty()) {
-            return false;
+        List<FacilityIntervalAnchor> pieces = new ArrayList<>();
+        for (StationFacilityRun run : road.getStationFacilities().sortedRuns()) {
+            if (run == null) {
+                continue;
+            }
+            double end = run.getEndStation() != null ? run.getEndStation() : length;
+            if (!(end > run.getStartStation() + EPSILON)) {
+                continue;
+            }
+            pieces.add(new FacilityIntervalAnchor(facilityIdentity(run), run.getStartStation(), end));
         }
-        anchors.add(new AlongTrackIdentityAnchor(
-            resolved.get().segmentId(),
-            resolved.get().localDistance(),
-            null,
-            facilityIdentity(run)));
-        return true;
+        return mergeAdjacentFacilityIntervals(pieces);
     }
 
     private static String facilityIdentity(StationFacilityRun run) {
@@ -685,14 +691,25 @@ public final class RoadStationDataTransforms {
     }
 
     /**
-     * Verify VCS/facility identities at captured physical passes retained by this road.
-     * Empty capture is a no-op success; callers must not skip when capture was non-empty.
+     * Verify resolved sections at retained physical passes and facility interval identity
+     * (catches unexpected expansion — R03).
      */
     public static boolean verifyAlongTrackPhysicalAnchors(
             RoadNetwork network,
             Road road,
-            List<AlongTrackIdentityAnchor> anchors) {
-        if (anchors == null || anchors.isEmpty()) {
+            AlongTrackAnchorCapture capture) {
+        return verifyAlongTrackPhysicalAnchors(network, road, capture, null);
+    }
+
+    public static boolean verifyAlongTrackPhysicalAnchors(
+            RoadNetwork network,
+            Road road,
+            AlongTrackAnchorCapture capture,
+            RoadSystemConfig defaults) {
+        if (capture == null || capture.failed()) {
+            return false;
+        }
+        if (capture.isEmpty()) {
             return true;
         }
         if (network == null || road == null) {
@@ -701,8 +718,7 @@ public final class RoadStationDataTransforms {
         Set<String> edgeIds = Set.copyOf(road.getOrderedSegmentIds());
         int expected = 0;
         int checked = 0;
-        double length = RoadStationing.canonicalLength(network, road);
-        for (AlongTrackIdentityAnchor anchor : anchors) {
+        for (AlongTrackIdentityAnchor anchor : capture.sectionAnchors()) {
             if (anchor == null || anchor.edgeId() == null || !edgeIds.contains(anchor.edgeId())) {
                 continue;
             }
@@ -716,29 +732,127 @@ public final class RoadStationDataTransforms {
             if (station.isEmpty() || !Double.isFinite(station.getAsDouble())) {
                 return false;
             }
-            double s = station.getAsDouble();
-            if (anchor.isVcs()) {
-                RoadCrossSection actual = VariableCrossSectionResolver.resolveTemplate(road, s);
-                if (!RoadCrossSectionEngineeringEquality.equals(anchor.expectedSection(), actual)) {
-                    return false;
-                }
-            } else if (anchor.isFacility()) {
-                boolean matched = false;
-                for (StationFacilityRun run : StationFacilityResolver.activeAt(road, s, length)) {
-                    if (anchor.facilityIdentity().equals(facilityIdentity(run))) {
-                        matched = true;
-                        break;
-                    }
-                }
-                if (!matched) {
-                    return false;
-                }
-            } else {
+            ResolvedCrossSection actual = VariableCrossSectionResolver.resolve(
+                network, road, station.getAsDouble(), defaults);
+            if (anchor.expectedResolved() == null || !anchor.expectedResolved().displayEquals(actual)) {
                 return false;
             }
             checked++;
         }
-        return expected == 0 || checked == expected;
+        if (expected > 0 && checked != expected) {
+            return false;
+        }
+        if (!capture.facilityIntervals().isEmpty()) {
+            double length = RoadStationing.canonicalLength(network, road);
+            List<FacilityIntervalAnchor> actual = captureFacilityIntervals(road, length);
+            // Clip expected intervals to this road's station domain (same frame as keep/head).
+            // Spanning facilities on remapped tails are verified by call-site remapping (merge/split).
+            List<FacilityIntervalAnchor> expectedFac = new ArrayList<>();
+            for (FacilityIntervalAnchor interval : capture.facilityIntervals()) {
+                if (interval == null) {
+                    continue;
+                }
+                Optional<SegmentStation> atStart =
+                    RoadStationing.resolve(network, road, interval.start());
+                if (atStart.isEmpty() || !edgeIds.contains(atStart.get().segmentId())) {
+                    continue;
+                }
+                double clippedEnd = Math.min(interval.end(), length);
+                if (!(clippedEnd > interval.start() + EPSILON)) {
+                    continue;
+                }
+                expectedFac.add(new FacilityIntervalAnchor(
+                    interval.identity(), interval.start(), clippedEnd));
+            }
+            if (!expectedFac.isEmpty() && !facilityIntervalsEqual(expectedFac, actual)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Clip facility intervals to {@code [rangeStart, rangeEnd)} then shift by {@code -rangeStart}. */
+    public static List<FacilityIntervalAnchor> clipAndShiftFacilityIntervals(
+            List<FacilityIntervalAnchor> intervals,
+            double rangeStart,
+            double rangeEnd) {
+        if (intervals == null || intervals.isEmpty() || !(rangeEnd > rangeStart + EPSILON)) {
+            return List.of();
+        }
+        List<FacilityIntervalAnchor> out = new ArrayList<>();
+        for (FacilityIntervalAnchor interval : intervals) {
+            if (interval == null) {
+                continue;
+            }
+            double start = Math.max(interval.start(), rangeStart);
+            double end = Math.min(interval.end(), rangeEnd);
+            if (!(end > start + EPSILON)) {
+                continue;
+            }
+            out.add(new FacilityIntervalAnchor(
+                interval.identity(), start - rangeStart, end - rangeStart));
+        }
+        return mergeAdjacentFacilityIntervals(out);
+    }
+
+    /** Phase 2.4.3-style facility coverage identity (start/end + kind/side/material/height). */
+    public static boolean facilityIntervalsEqual(
+            List<FacilityIntervalAnchor> expected,
+            List<FacilityIntervalAnchor> actual) {
+        List<FacilityIntervalAnchor> left = mergeAdjacentFacilityIntervals(
+            expected == null ? List.of() : expected);
+        List<FacilityIntervalAnchor> right = mergeAdjacentFacilityIntervals(
+            actual == null ? List.of() : actual);
+        if (left.size() != right.size()) {
+            return false;
+        }
+        List<FacilityIntervalAnchor> remaining = new ArrayList<>(right);
+        for (FacilityIntervalAnchor exp : left) {
+            int match = -1;
+            for (int i = 0; i < remaining.size(); i++) {
+                FacilityIntervalAnchor act = remaining.get(i);
+                if (!exp.identity().equals(act.identity())) {
+                    continue;
+                }
+                if (Math.abs(exp.start() - act.start()) <= 1e-2
+                        && Math.abs(exp.end() - act.end()) <= 1e-2) {
+                    match = i;
+                    break;
+                }
+            }
+            if (match < 0) {
+                return false;
+            }
+            remaining.remove(match);
+        }
+        return remaining.isEmpty();
+    }
+
+    private static List<FacilityIntervalAnchor> mergeAdjacentFacilityIntervals(
+            List<FacilityIntervalAnchor> pieces) {
+        if (pieces == null || pieces.isEmpty()) {
+            return List.of();
+        }
+        List<FacilityIntervalAnchor> sorted = new ArrayList<>(pieces);
+        sorted.sort(Comparator
+            .comparing(FacilityIntervalAnchor::identity)
+            .thenComparingDouble(FacilityIntervalAnchor::start)
+            .thenComparingDouble(FacilityIntervalAnchor::end));
+        List<FacilityIntervalAnchor> merged = new ArrayList<>();
+        FacilityIntervalAnchor current = sorted.getFirst();
+        for (int i = 1; i < sorted.size(); i++) {
+            FacilityIntervalAnchor next = sorted.get(i);
+            if (current.identity().equals(next.identity())
+                    && Math.abs(current.end() - next.start()) <= 1e-2) {
+                current = new FacilityIntervalAnchor(
+                    current.identity(), current.start(), next.end());
+            } else {
+                merged.add(current);
+                current = next;
+            }
+        }
+        merged.add(current);
+        return merged;
     }
 
     public static StationMigrationResult applyRoadMerge(RoadNetwork network, Road head, Road tail) {
@@ -885,7 +999,13 @@ public final class RoadStationDataTransforms {
             String edgeId,
             double start,
             double end,
-            int sliceIndex) {
+            int sliceIndex,
+            double nativeStart,
+            double nativeEnd) {
+        public EdgeStationSpan(String edgeId, double start, double end, int sliceIndex) {
+            this(edgeId, start, end, sliceIndex, Double.NaN, Double.NaN);
+        }
+
         public boolean isValid() {
             return edgeId != null && !edgeId.isBlank() && end > start + EPSILON;
         }
@@ -893,6 +1013,82 @@ public final class RoadStationDataTransforms {
         public double length() {
             return Math.max(0.0, end - start);
         }
+
+        public boolean hasNativeRange() {
+            return Double.isFinite(nativeStart) && Double.isFinite(nativeEnd);
+        }
+    }
+
+    /**
+     * Extract HA for a canonical station interval using the road's orientation at capture time.
+     * Opposed walks reverse after extract; SPIRAL refuse returns empty (R02/R05).
+     */
+    public static Optional<RoadHorizontalAlignment> extractHaCanonicalRange(
+            RoadNetwork network,
+            Road orientationRoad,
+            RoadHorizontalAlignment source,
+            double canonicalStart,
+            double canonicalEnd) {
+        if (network == null || orientationRoad == null || source == null || source.isEmpty()) {
+            return Optional.empty();
+        }
+        if (!Double.isFinite(canonicalStart) || !Double.isFinite(canonicalEnd)
+                || canonicalEnd <= canonicalStart + EPSILON) {
+            return Optional.empty();
+        }
+        double nStart = RoadPlanGeometry.haNativeStation(network, orientationRoad, canonicalStart);
+        double nEnd = RoadPlanGeometry.haNativeStation(network, orientationRoad, canonicalEnd);
+        return extractHaNativeRange(source, nStart, nEnd);
+    }
+
+    /**
+     * Extract HA for a pre-captured native interval. When {@code nativeStart > nativeEnd},
+     * extract then reverse (opposed design). SPIRAL reverse refuses.
+     */
+    public static Optional<RoadHorizontalAlignment> extractHaNativeRange(
+            RoadHorizontalAlignment source,
+            double nativeStart,
+            double nativeEnd) {
+        if (source == null || source.isEmpty()) {
+            return Optional.empty();
+        }
+        if (!Double.isFinite(nativeStart) || !Double.isFinite(nativeEnd)) {
+            return Optional.empty();
+        }
+        boolean needReverse = nativeStart > nativeEnd + EPSILON;
+        double lo = Math.min(nativeStart, nativeEnd);
+        double hi = Math.max(nativeStart, nativeEnd);
+        if (hi <= lo + EPSILON) {
+            return Optional.empty();
+        }
+        Optional<RoadHorizontalAlignment> piece =
+            HorizontalAlignmentGeometry.extractRange(source, lo, hi);
+        if (piece.isEmpty()) {
+            return Optional.empty();
+        }
+        if (!needReverse) {
+            return piece;
+        }
+        RoadHorizontalAlignment reversed = HorizontalAlignmentGeometry.reverse(piece.get());
+        return reversed != null && !reversed.isEmpty() ? Optional.of(reversed) : Optional.empty();
+    }
+
+    /** Apply captured HA slice onto target; clears HA when source had none. */
+    public static boolean applyExtractedHaToRoad(
+            Road target,
+            Optional<RoadHorizontalAlignment> extracted,
+            boolean sourceHadHa) {
+        if (target == null) {
+            return false;
+        }
+        if (!sourceHadHa) {
+            return true;
+        }
+        if (extracted.isEmpty()) {
+            return false;
+        }
+        target.setHorizontalAlignment(extracted.get());
+        return true;
     }
 
     static double remapStationAfterSegmentEdit(
@@ -1234,17 +1430,23 @@ public final class RoadStationDataTransforms {
             RoadVerticalAlignment verticalAlignment,
             RoadVariableCrossSections variableCrossSections,
             RoadStationFacilities stationFacilities,
-            boolean hadHorizontalAlignment) {
+            RoadCrossSection defaultCrossSection,
+            RoadHorizontalAlignment horizontalAlignment) {
+
+        public boolean hadHorizontalAlignment() {
+            return horizontalAlignment != null && !horizontalAlignment.isEmpty();
+        }
 
         public static StationDataSnapshot capture(Road road) {
             if (road == null) {
-                return new StationDataSnapshot(null, null, null, false);
+                return new StationDataSnapshot(null, null, null, null, null);
             }
             return new StationDataSnapshot(
                 road.getVerticalAlignment(),
                 road.getVariableCrossSections(),
                 road.getStationFacilities(),
-                road.getHorizontalAlignment() != null);
+                road.getCrossSection() != null ? road.getCrossSection().copy() : null,
+                road.getHorizontalAlignment() != null ? road.getHorizontalAlignment().copy() : null);
         }
 
         public StationMigrationResult applyRangeTo(
@@ -1264,7 +1466,9 @@ public final class RoadStationDataTransforms {
             scratch.setVerticalAlignment(verticalAlignment);
             scratch.setVariableCrossSections(variableCrossSections);
             scratch.setStationFacilities(stationFacilities);
-            scratch.setCrossSection(target.getCrossSection());
+            // Always use source default CS — never the (possibly empty) target template (R01).
+            scratch.setCrossSection(
+                defaultCrossSection != null ? defaultCrossSection.copy() : target.getCrossSection());
             return applyStationRangeExtract(
                 scratch, target, totalSourceLength, range.start(), range.end(), defaults);
         }
@@ -1273,7 +1477,7 @@ public final class RoadStationDataTransforms {
             return verticalAlignment != null
                 || variableCrossSections != null
                 || stationFacilities != null
-                || hadHorizontalAlignment;
+                || hadHorizontalAlignment();
         }
     }
 

@@ -991,6 +991,9 @@ public final class RoadNetworkManager {
             road.setVerticalAlignment(null);
             road.setVariableCrossSections(null);
             road.setStationFacilities(null);
+            if (stationSnapshot != null && stationSnapshot.hadHorizontalAlignment()) {
+                road.setHorizontalAlignment(null);
+            }
             var repair = RoadTopologyRoadSplitter.repairRoad(network, road);
             if (repair.migrationFailed()) {
                 return false;
@@ -1002,6 +1005,9 @@ public final class RoadNetworkManager {
                     stationSnapshot,
                     before != null ? before.totalLengthBefore() : 0.0,
                     edgeSpansBefore)) {
+                return false;
+            }
+            if (!verifySurvivingRoadsAfterDelete(edgeSpansBefore, stationSnapshot)) {
                 return false;
             }
             return rebindEditedOnSurvivingRoads(priorEditedValid, edgeSpansBefore);
@@ -1027,12 +1033,29 @@ public final class RoadNetworkManager {
                 if (!result.isSuccess()) {
                     return false;
                 }
+                if (stationSnapshot.hadHorizontalAlignment()) {
+                    var extracted = extractHaForKeptRange(
+                        stationSnapshot, edgeSpansBefore, keepStart, keepEnd);
+                    if (extracted.isEmpty()) {
+                        return false;
+                    }
+                    road.setHorizontalAlignment(extracted.get());
+                }
             } else {
                 road.setVerticalAlignment(null);
                 road.setVariableCrossSections(null);
                 road.setStationFacilities(null);
+                if (stationSnapshot.hadHorizontalAlignment()) {
+                    road.setHorizontalAlignment(null);
+                }
             }
+            // Head delete invalidates prior design entry edge/node — rebind to surviving walk.
+            rebindDesignEntryAfterEdgeDeletion(road, edgeSpansBefore, keepStart, keepEnd);
         } else {
+            // Middle delete without disconnect is unexpected; refuse rather than leave stale HA.
+            if (stationSnapshot.hadHorizontalAlignment()) {
+                return false;
+            }
             RoadStationDataTransforms.rescaleAfterGeometryEdit(
                 road,
                 before.rangeStart(),
@@ -1041,8 +1064,142 @@ public final class RoadNetworkManager {
                 before.totalLengthBefore());
         }
         RoadTopologyInvariantValidator.syncStorageOrderIfMaintainable(network, road);
+        if (stationSnapshot.hadHorizontalAlignment()) {
+            var map = RoadStationing.domainMap(network, road);
+            if (map == null || !map.isReliable()) {
+                return false;
+            }
+        }
         return RoadStationDataTransforms.rebindEditedProfileAfterFinalGeometry(
             network, road, priorEditedValid);
+    }
+
+    /**
+     * After head/tail delete, bind design entry to the keep-range start (R02). Stale entry on a
+     * removed edge reverses HA↔instance mapping; min-XY rebind is unsafe for arcs.
+     */
+    private void rebindDesignEntryAfterEdgeDeletion(
+            Road road,
+            List<EdgeStationSpan> edgeSpansBefore,
+            double keepStart,
+            double keepEnd) {
+        if (road == null) {
+            return;
+        }
+        EdgeStationSpan firstKeep = null;
+        if (edgeSpansBefore != null) {
+            for (EdgeStationSpan span : edgeSpansBefore) {
+                if (span == null || !span.isValid()) {
+                    continue;
+                }
+                if (span.end() <= keepStart + 1e-6 || span.start() >= keepEnd - 1e-6) {
+                    continue;
+                }
+                if (network.getEdge(span.edgeId()) == null) {
+                    continue;
+                }
+                if (firstKeep == null || span.start() < firstKeep.start() - 1e-9) {
+                    firstKeep = span;
+                }
+            }
+        }
+        if (firstKeep == null) {
+            road.setDesignEntryEdgeId(null);
+            road.setDesignEntryNodeId(null);
+            com.plot.plugin.road.station.RoadDesignDirectionAuthority.ensureBound(network, road);
+            return;
+        }
+        RoadEdge entryEdge = network.getEdge(firstKeep.edgeId());
+        if (entryEdge == null) {
+            return;
+        }
+        String entryNode = endpointNearKeepStart(road, entryEdge, keepStart);
+        road.setDesignEntryEdgeId(entryEdge.getId());
+        if (entryNode != null) {
+            road.setDesignEntryNodeId(entryNode);
+        }
+    }
+
+    private String endpointNearKeepStart(Road road, RoadEdge edge, double keepStart) {
+        RoadNode start = network.getNode(edge.getStartNodeId());
+        RoadNode end = network.getNode(edge.getEndNodeId());
+        if (start == null || end == null) {
+            return edge.getStartNodeId();
+        }
+        com.plot.api.geometry.Vec2d target = null;
+        if (road.getHorizontalAlignment() != null && !road.getHorizontalAlignment().isEmpty()) {
+            target = road.getHorizontalAlignment().getOrigin();
+        }
+        if (target == null) {
+            // Prefer the endpoint that was at keepStart via pre-delete span geometry — HA origin.
+            return edge.getStartNodeId();
+        }
+        double ds = com.plot.api.geometry.Vec2d.distanceSquared(start.getPosition(), target);
+        double de = com.plot.api.geometry.Vec2d.distanceSquared(end.getPosition(), target);
+        return ds <= de ? edge.getStartNodeId() : edge.getEndNodeId();
+    }
+
+    private java.util.Optional<com.plot.plugin.road.alignment.RoadHorizontalAlignment>
+            extractHaForKeptRange(
+                StationDataSnapshot snapshot,
+                List<EdgeStationSpan> edgeSpansBefore,
+                double keepStart,
+                double keepEnd) {
+        if (snapshot == null || !snapshot.hadHorizontalAlignment()) {
+            return java.util.Optional.empty();
+        }
+        double nStart = Double.NaN;
+        double nEnd = Double.NaN;
+        if (edgeSpansBefore != null) {
+            for (EdgeStationSpan span : edgeSpansBefore) {
+                if (span == null || !span.hasNativeRange()) {
+                    continue;
+                }
+                if (Math.abs(span.start() - keepStart) <= 1e-6) {
+                    nStart = span.nativeStart();
+                }
+                if (Math.abs(span.end() - keepEnd) <= 1e-6) {
+                    nEnd = span.nativeEnd();
+                }
+            }
+        }
+        if (Double.isFinite(nStart) && Double.isFinite(nEnd)) {
+            return RoadStationDataTransforms.extractHaNativeRange(
+                snapshot.horizontalAlignment(), nStart, nEnd);
+        }
+        return java.util.Optional.empty();
+    }
+
+    private boolean verifySurvivingRoadsAfterDelete(
+            List<EdgeStationSpan> edgeSpansBefore,
+            StationDataSnapshot stationSnapshot) {
+        if (edgeSpansBefore == null || edgeSpansBefore.isEmpty()) {
+            return true;
+        }
+        java.util.HashSet<String> seen = new java.util.HashSet<>();
+        for (EdgeStationSpan span : edgeSpansBefore) {
+            if (span == null || span.edgeId() == null) {
+                continue;
+            }
+            RoadEdge edge = network.getEdge(span.edgeId());
+            if (edge == null || edge.getRoadId() == null || !seen.add(edge.getRoadId())) {
+                continue;
+            }
+            Road surviving = network.getRoad(edge.getRoadId());
+            if (surviving == null) {
+                continue;
+            }
+            if (stationSnapshot != null && stationSnapshot.hadHorizontalAlignment()) {
+                if (surviving.getHorizontalAlignment() == null) {
+                    return false;
+                }
+                var map = RoadStationing.domainMap(network, surviving);
+                if (map == null || !map.isReliable()) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     private boolean rebindEditedOnSurvivingRoads(
@@ -1075,6 +1232,8 @@ public final class RoadNetworkManager {
         if (road == null) {
             return spans;
         }
+        boolean hasHa = road.getHorizontalAlignment() != null
+            && !road.getHorizontalAlignment().isEmpty();
         int slice = 0;
         for (var segment : RoadStationing.orientedSegments(network, road)) {
             double cStart = RoadStationing.toCanonicalChainage(
@@ -1084,7 +1243,19 @@ public final class RoadNetworkManager {
             if (!Double.isFinite(cStart) || !Double.isFinite(cEnd)) {
                 return List.of();
             }
-            spans.add(new EdgeStationSpan(segment.edgeId(), cStart, cEnd, slice++));
+            double nStart = Double.NaN;
+            double nEnd = Double.NaN;
+            if (hasHa) {
+                nStart = com.plot.plugin.road.alignment.RoadPlanGeometry.haNativeStation(
+                    network, road, cStart);
+                nEnd = com.plot.plugin.road.alignment.RoadPlanGeometry.haNativeStation(
+                    network, road, cEnd);
+                if (!Double.isFinite(nStart) || !Double.isFinite(nEnd)) {
+                    return List.of();
+                }
+            }
+            spans.add(new EdgeStationSpan(
+                segment.edgeId(), cStart, cEnd, slice++, nStart, nEnd));
         }
         return spans;
     }
@@ -1145,10 +1316,32 @@ public final class RoadNetworkManager {
             if (contiguous.size() != 1) {
                 return false;
             }
+            StationRange range = contiguous.getFirst();
             var result = snapshot.applyRangeTo(
-                surviving, totalLengthBefore, contiguous.getFirst(), config);
+                surviving, totalLengthBefore, range, config);
             if (!result.isSuccess()) {
                 return false;
+            }
+            if (snapshot.hadHorizontalAlignment()) {
+                double nStart = Double.NaN;
+                double nEnd = Double.NaN;
+                for (EdgeStationSpan span : roadSpans) {
+                    if (span == null || !span.hasNativeRange()) {
+                        continue;
+                    }
+                    if (Math.abs(span.start() - range.start()) <= 1e-6) {
+                        nStart = span.nativeStart();
+                    }
+                    if (Math.abs(span.end() - range.end()) <= 1e-6) {
+                        nEnd = span.nativeEnd();
+                    }
+                }
+                var extracted = RoadStationDataTransforms.extractHaNativeRange(
+                    snapshot.horizontalAlignment(), nStart, nEnd);
+                if (extracted.isEmpty()) {
+                    return false;
+                }
+                surviving.setHorizontalAlignment(extracted.get());
             }
         }
         return true;

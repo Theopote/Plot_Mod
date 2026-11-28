@@ -50,12 +50,22 @@ public final class RoadTopologyRoadSplitter {
 
     /**
      * 认领批次末尾调用：拆断开/分叉 Road，提升闭合环为 {@link RoadTopologyMode#LOOP}，并同步分段顺序。
+     * Atomic: mutate working copy only; adopt on success (R04).
      */
     public static RepairResult repairAfterAdopt(RoadNetwork network) {
         if (network == null) {
             return new RepairResult(0, 0);
         }
+        RoadNetwork working = network.snapshot();
+        RepairResult result = repairAfterAdoptMutating(working);
+        if (result.migrationFailed()) {
+            return result;
+        }
+        network.replaceContentsFrom(working);
+        return result;
+    }
 
+    private static RepairResult repairAfterAdoptMutating(RoadNetwork network) {
         int loopsPromoted = promoteClosedLoopsToLoopMode(network);
 
         int sourceRoadsRepaired = 0;
@@ -110,11 +120,29 @@ public final class RoadTopologyRoadSplitter {
 
     /**
      * 修复单条道路的断开分量 / 内部分叉，并同步分段顺序。
+     * Atomic: mutate working copy only; adopt on success (R04).
      */
     public static RepairResult repairRoad(RoadNetwork network, Road road) {
         if (network == null || road == null) {
             return new RepairResult(0, 0);
         }
+        if (network.getRoad(road.getId()) == null) {
+            return new RepairResult(0, 0);
+        }
+        RoadNetwork working = network.snapshot();
+        Road workingRoad = working.getRoad(road.getId());
+        if (workingRoad == null) {
+            return new RepairResult(0, 0);
+        }
+        RepairResult result = repairRoadMutating(working, workingRoad);
+        if (result.migrationFailed()) {
+            return result;
+        }
+        network.replaceContentsFrom(working);
+        return result;
+    }
+
+    private static RepairResult repairRoadMutating(RoadNetwork network, Road road) {
         Road current = network.getRoad(road.getId());
         if (current == null) {
             return new RepairResult(0, 0);
@@ -335,9 +363,18 @@ public final class RoadTopologyRoadSplitter {
             int branchIndexStart) {
         StationDataSnapshot snapshot = StationDataSnapshot.capture(road);
         VerticalIntentSnapshot intentSnapshot = VerticalIntentSnapshot.capture(road);
+        // Freeze base engineering before keep is range-cropped (R01).
+        Road baseEngineering = new Road("base-engineering");
+        baseEngineering.copyEngineeringFrom(road);
         boolean sourceEditedValid =
             com.plot.plugin.road.vertical.ResolvedProfileAuthority.hasValidEditedProfile(network, road);
         double totalLength = RoadStationing.canonicalLength(network, road);
+        // Phase-2 data with invalid length must refuse — never silent drop (R04).
+        // Branching/disconnected roads are not isStationable; component ranges still come from
+        // orientedSegments walk, and empty/unextractable ranges refuse below.
+        if (snapshot.hasPhase2Data() && !(totalLength > 1e-6)) {
+            return -1;
+        }
         boolean mapStationData = snapshot.hasPhase2Data() && totalLength > 1e-6;
 
         List<List<StationRange>> componentRanges = new ArrayList<>(components.size());
@@ -362,6 +399,9 @@ public final class RoadTopologyRoadSplitter {
                 }
                 if (runs.size() == 1) {
                     Road scratch = new Road("distribute-dry-run-" + i);
+                    if (snapshot.defaultCrossSection() != null) {
+                        scratch.setCrossSection(snapshot.defaultCrossSection().copy());
+                    }
                     if (!snapshot.applyRangeTo(scratch, totalLength, runs.getFirst()).isSuccess()) {
                         return -1;
                     }
@@ -395,23 +435,26 @@ public final class RoadTopologyRoadSplitter {
             if (i == keepIndex) {
                 continue;
             }
-            // New components accept only snapshot extract — never inherit from cropped keep.
+            // Base road-level engineering always inherited; along-track data only from snapshot (R01).
             Road splitRoad = network.createRoad();
+            splitRoad.copyEngineeringFrom(baseEngineering);
             splitRoad.setTopologyMode(RoadTopologyMode.LINEAR);
             applyBranchName(road, splitRoad, branchIndex++);
             if (mapStationData) {
+                // Clear along-track inherited from keep after copyEngineeringFrom (none copied) —
+                // then apply snapshot extract for this component only.
                 List<StationRange> runs = componentRanges.get(i);
                 if (runs.size() == 1) {
                     var branchResult = snapshot.applyRangeTo(splitRoad, totalLength, runs.getFirst());
                     if (!branchResult.isSuccess()) {
                         return -1;
                     }
+                } else {
+                    clearStationEngineeringData(splitRoad);
                 }
                 if (snapshot.hadHorizontalAlignment()) {
                     splitRoad.setHorizontalAlignment(null);
                 }
-            } else {
-                splitRoad.copyEngineeringFrom(road);
             }
             reassignComponent(network, splitRoad, components.get(i));
             intentSnapshot.applyTo(network, splitRoad, components.get(i));

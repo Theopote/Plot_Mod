@@ -1,12 +1,14 @@
 package com.plot.plugin.road.station;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.material.MaterialMix;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.alignment.HorizontalAlignmentElement;
 import com.plot.plugin.road.alignment.HorizontalAlignmentGeometry;
 import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
 import com.plot.plugin.road.alignment.TurnDirection;
 import com.plot.plugin.road.centerline.RoadCenterlineEditor;
+import com.plot.plugin.road.graph.RoadGraphEdits;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.manager.RoadProjectStatus;
 import com.plot.plugin.road.model.Road;
@@ -25,6 +27,7 @@ import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.model.section.StationCrossSection;
 import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
 import com.plot.plugin.road.model.section.VariableCrossSectionTransitionMode;
+import com.plot.plugin.road.tunnel.TunnelStyle;
 import com.plot.plugin.road.vertical.EditedProfileGeometry;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.ProfileSource;
@@ -32,6 +35,7 @@ import com.plot.plugin.road.vertical.ResolvedProfileAuthority;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 import com.plot.plugin.road.vertical.VerticalControlPointConstraint;
+import com.plot.plugin.road.station.RoadStationDataTransforms.FacilityIntervalAnchor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -318,6 +322,14 @@ class Phase244StationMigrationInvariantTest {
         String headEdge = segs.get(0);
         String mid = segs.get(1);
         String tailEdge = segs.get(2);
+        road.setCrossSection(section(14));
+        road.setMaterial(MaterialMix.single("minecraft:black_concrete"));
+        road.setStyleId("city_main");
+        road.setThemeId("theme-r01");
+        road.setBridgeThreshold(11);
+        TunnelStyle tunnel = new TunnelStyle();
+        tunnel.setClearHeight(7);
+        road.setTunnelStyle(tunnel);
         road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0.0, 10.0),
             PointOfVerticalIntersection.of(40.0, 11.0),
@@ -343,6 +355,16 @@ class Phase244StationMigrationInvariantTest {
         assertEquals(11.0, headComp.getVerticalAlignment().sortedPvis().getLast().getElevation(), EPS);
         assertEquals(12.0, tailComp.getVerticalAlignment().sortedPvis().getFirst().getElevation(), EPS);
         assertEquals(13.0, tailComp.getVerticalAlignment().sortedPvis().getLast().getElevation(), EPS);
+        // R01: split components inherit non-default width/material/bridge/tunnel.
+        for (Road part : List.of(headComp, tailComp)) {
+            assertEquals(14, part.getCrossSection().getCarriageway().getWidth());
+            assertEquals("minecraft:black_concrete", part.getMaterial().getPrimaryMaterial());
+            assertEquals("city_main", part.getStyleId());
+            assertEquals("theme-r01", part.getThemeId());
+            assertEquals(11, part.getBridgeThreshold());
+            assertNotNull(part.getStoredTunnelStyle());
+            assertEquals(7, part.getStoredTunnelStyle().getStoredClearHeight());
+        }
     }
 
     @Test
@@ -469,10 +491,22 @@ class Phase244StationMigrationInvariantTest {
         assertTrue(RoadStationing.domainMap(network, arcTail).isReliable());
         assertTrue(RoadStationDataTransforms.verifyVaPhysicalAnchors(network, arcHead, vaCap.anchors()));
         assertTrue(RoadStationDataTransforms.verifyVaPhysicalAnchors(network, arcTail, vaCap.anchors()));
+        var sectionOnly = RoadStationDataTransforms.AlongTrackAnchorCapture.ok(
+            alongCap.sectionAnchors(), List.of());
         assertTrue(RoadStationDataTransforms.verifyAlongTrackPhysicalAnchors(
-            network, arcHead, alongCap.anchors()));
+            network, arcHead, sectionOnly));
         assertTrue(RoadStationDataTransforms.verifyAlongTrackPhysicalAnchors(
-            network, arcTail, alongCap.anchors()));
+            network, arcTail, sectionOnly));
+        double arcHeadLen = RoadStationing.canonicalLength(network, arcHead);
+        double arcTailLen = RoadStationing.canonicalLength(network, arcTail);
+        assertTrue(RoadStationDataTransforms.facilityIntervalsEqual(
+            RoadStationDataTransforms.clipAndShiftFacilityIntervals(
+                alongCap.facilityIntervals(), 0.0, arcHeadLen),
+            RoadStationDataTransforms.captureFacilityIntervals(arcHead, arcHeadLen)));
+        assertTrue(RoadStationDataTransforms.facilityIntervalsEqual(
+            RoadStationDataTransforms.clipAndShiftFacilityIntervals(
+                alongCap.facilityIntervals(), splitSta, splitSta + arcTailLen),
+            RoadStationDataTransforms.captureFacilityIntervals(arcTail, arcTailLen)));
         assertEquals(elevBefore,
             VerticalAlignmentGeometry.elevationAt(arcHead.getVerticalAlignment(), splitSta * 0.5)
                 .orElseThrow(),
@@ -933,6 +967,161 @@ class Phase244StationMigrationInvariantTest {
         String before = network.toJson();
         assertFalse(RoadCenterlineEditor.insertPiAtLocalDistance(network, edgeId, 20.0).isSuccess());
         assertEquals(before, network.toJson());
+    }
+
+    @Test
+    void deleteHeadArcHaKeepsPhysicalPoseAndEdited() {
+        double radius = 40.0;
+        double arcLen = Math.PI * radius / 2.0;
+        RoadHorizontalAlignment arcHa = new RoadHorizontalAlignment(
+            new Vec2d(radius, 0),
+            Math.PI / 2.0,
+            List.of(HorizontalAlignmentElement.circularArc(arcLen, radius, TurnDirection.LEFT)));
+        List<Vec2d> onHa = HorizontalAlignmentGeometry.sample(arcHa, 0.5);
+        int mid = onHa.size() / 2;
+        Road road = network.createRoad("arc-head-del");
+        RoadNode a0 = network.createNode(onHa.getFirst().copy());
+        RoadNode aMid = network.createNode(onHa.get(mid).copy());
+        RoadNode a1 = network.createNode(onHa.getLast().copy());
+        String headEdge = network.createEdge(a0.getId(), aMid.getId(),
+            onHa.subList(0, mid + 1).stream().map(Vec2d::copy).toList(), road.getId()).getId();
+        String tailEdge = network.createEdge(aMid.getId(), a1.getId(),
+            onHa.subList(mid, onHa.size()).stream().map(Vec2d::copy).toList(), road.getId()).getId();
+        road.setHorizontalAlignment(arcHa);
+        road.setDesignEntryEdgeId(headEdge);
+        road.setDesignEntryNodeId(a0.getId());
+        assertTrue(RoadStationing.domainMap(network, road).isReliable(),
+            "arc seed must be domain-reliable before delete");
+        double total = RoadStationing.canonicalLength(network, road);
+        double headLen = RoadStationing.segmentStartStation(network, road, tailEdge);
+        assertTrue(headLen > 1.0 && headLen < total - 1.0, "headLen=" + headLen);
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 10.0),
+            PointOfVerticalIntersection.of(headLen, 11.0),
+            PointOfVerticalIntersection.of(total, 12.0))));
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
+        assertTrue(ResolvedProfileAuthority.hasValidEditedProfile(network, road));
+        Optional<Vec2d> midPoseBefore = RoadStationing.pointAtStation(network, road, headLen + 5.0);
+        assertTrue(midPoseBefore.isPresent());
+        manager.deleteEdge(headEdge);
+        network = manager.getNetwork();
+        Road after = network.getRoad(road.getId());
+        assertNotNull(after);
+        assertNotNull(after.getHorizontalAlignment());
+        assertTrue(RoadStationing.domainMap(network, after).isReliable());
+        assertTrue(ResolvedProfileAuthority.hasValidEditedProfile(network, after),
+            "head delete must rebind EDITED on final HA");
+        Optional<Vec2d> midPoseAfter = RoadStationing.pointAtStation(network, after, 5.0);
+        assertTrue(midPoseAfter.isPresent());
+        assertEquals(midPoseBefore.get().x, midPoseAfter.get().x, 0.5);
+        assertEquals(midPoseBefore.get().y, midPoseAfter.get().y, 0.5);
+    }
+
+    @Test
+    void deleteMiddleWithHaExtractsOrRefusesAtomically() {
+        Road road = linearRoad(3, 30.0);
+        List<String> segs = List.copyOf(road.getOrderedSegmentIds());
+        String headEdge = segs.get(0);
+        String mid = segs.get(1);
+        String tailEdge = segs.get(2);
+        road.setHorizontalAlignment(new RoadHorizontalAlignment(
+            new Vec2d(0, 0),
+            0.0,
+            List.of(
+                HorizontalAlignmentElement.tangent(30.0),
+                HorizontalAlignmentElement.tangent(30.0),
+                HorizontalAlignmentElement.tangent(30.0))));
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 10.0),
+            PointOfVerticalIntersection.of(45.0, 11.0),
+            PointOfVerticalIntersection.of(90.0, 12.0))));
+        assertTrue(RoadStationing.domainMap(network, road).isReliable());
+        String before = network.toJson();
+        manager.deleteEdge(mid);
+        network = manager.getNetwork();
+        Road headComp = null;
+        Road tailComp = null;
+        for (Road r : network.getRoads().values()) {
+            if (r.getOrderedSegmentIds().contains(headEdge)) {
+                headComp = r;
+            }
+            if (r.getOrderedSegmentIds().contains(tailEdge)) {
+                tailComp = r;
+            }
+        }
+        if (headComp == null || tailComp == null) {
+            assertEquals(before, network.toJson(), "HA middle delete must refuse atomically");
+            return;
+        }
+        assertNotNull(headComp.getHorizontalAlignment());
+        assertNotNull(tailComp.getHorizontalAlignment());
+        assertTrue(RoadStationing.domainMap(network, headComp).isReliable());
+        assertTrue(RoadStationing.domainMap(network, tailComp).isReliable());
+        assertEquals(30.0, headComp.getHorizontalAlignment().totalLength(), 1.0);
+        assertEquals(30.0, tailComp.getHorizontalAlignment().totalLength(), 1.0);
+    }
+
+    @Test
+    void facilityIntervalEqualityCatchesUnexpectedExpansion() {
+        String id = "GUARDRAIL|LEFT||";
+        List<FacilityIntervalAnchor> expected = List.of(
+            new FacilityIntervalAnchor(id, 0.0, 40.0));
+        List<FacilityIntervalAnchor> expanded = List.of(
+            new FacilityIntervalAnchor(id, 0.0, 80.0));
+        assertFalse(RoadStationDataTransforms.facilityIntervalsEqual(expected, expanded),
+            "expanded coverage must fail interval identity");
+        Road road = new Road("fac-null-end");
+        road.setStationFacilities(new RoadStationFacilities(List.of(
+            new StationFacilityRun(10.0, null, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.LEFT,
+                null, null))));
+        List<FacilityIntervalAnchor> captured =
+            RoadStationDataTransforms.captureFacilityIntervals(road, 100.0);
+        assertEquals(1, captured.size());
+        assertEquals(10.0, captured.getFirst().start(), EPS);
+        assertEquals(100.0, captured.getFirst().end(), EPS);
+        assertTrue(RoadStationDataTransforms.facilityIntervalsEqual(
+            captured, List.of(new FacilityIntervalAnchor(captured.getFirst().identity(), 10.0, 100.0))));
+        assertFalse(RoadStationDataTransforms.facilityIntervalsEqual(
+            captured, List.of(new FacilityIntervalAnchor(captured.getFirst().identity(), 10.0, 120.0))));
+    }
+
+    @Test
+    void mergeJunctionMigrationFailureLeavesNetworkUnchanged() {
+        RoadNode survivor = network.createNode(new Vec2d(0, 0));
+        RoadNode absorbed = network.createNode(new Vec2d(2, 0));
+        network.createEdge(
+            survivor.getId(), network.createNode(new Vec2d(-10, 0)).getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(-10, 0)),
+            network.createRoad("j-a").getId());
+        Road roadB = network.createRoad("j-b");
+        network.createEdge(
+            absorbed.getId(), network.createNode(new Vec2d(10, 0)).getId(),
+            List.of(new Vec2d(2, 0), new Vec2d(10, 0)),
+            roadB.getId());
+        // Arc HA on straight polyline → unreliable; protected VA forces refuse.
+        roadB.setHorizontalAlignment(new RoadHorizontalAlignment(
+            new Vec2d(2, 0),
+            0.0,
+            List.of(HorizontalAlignmentElement.circularArc(8.0, 30.0, TurnDirection.LEFT))));
+        roadB.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 10.0),
+            PointOfVerticalIntersection.of(8.0, 11.0))));
+        assertFalse(RoadStationing.domainMap(network, roadB).isReliable());
+        String before = network.toJson();
+        assertTrue(RoadGraphEdits.of(network).mergeJunctionNode(survivor.getId(), absorbed.getId()).isEmpty());
+        assertEquals(before, network.toJson());
+    }
+
+    @Test
+    void reverseHaWithSpiralRefuses() {
+        RoadHorizontalAlignment withSpiral = new RoadHorizontalAlignment(
+            new Vec2d(0, 0),
+            0.0,
+            List.of(
+                HorizontalAlignmentElement.tangent(20.0),
+                HorizontalAlignmentElement.spiral(30.0, 40.0),
+                HorizontalAlignmentElement.tangent(20.0)));
+        assertNull(HorizontalAlignmentGeometry.reverse(withSpiral));
     }
 
     private static RoadCrossSection section(int width) {

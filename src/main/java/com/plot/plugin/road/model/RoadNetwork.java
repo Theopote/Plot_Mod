@@ -637,11 +637,10 @@ public class RoadNetwork {
         }
         var vaAnchors = vaCapture.anchors();
         var alongCapture = RoadStationDataTransforms.captureAlongTrackPhysicalAnchors(
-            this, road, List.of(splitStation));
+            this, road, List.of(splitStation), defaults);
         if (alongCapture.failed()) {
             return null;
         }
-        var alongAnchors = alongCapture.anchors();
         var crossingCapture = com.plot.plugin.road.crossing.RoadCrossingOwnershipMigrator.captureForRoads(
             this, Set.of(roadId));
         Road newRoad = createRoad();
@@ -687,12 +686,32 @@ public class RoadNetwork {
                 return null;
             }
         }
-        if (!alongAnchors.isEmpty()) {
-            if (!RoadStationDataTransforms.verifyAlongTrackPhysicalAnchors(this, road, alongAnchors)
-                    || !RoadStationDataTransforms.verifyAlongTrackPhysicalAnchors(
-                        this, newRoad, alongAnchors)) {
-                crossingMigrationFailure = true;
-                return null;
+        if (!alongCapture.isEmpty()) {
+            var sectionOnly = RoadStationDataTransforms.AlongTrackAnchorCapture.ok(
+                alongCapture.sectionAnchors(), List.of());
+            if (!sectionOnly.isEmpty()) {
+                if (!RoadStationDataTransforms.verifyAlongTrackPhysicalAnchors(
+                            this, road, sectionOnly, defaults)
+                        || !RoadStationDataTransforms.verifyAlongTrackPhysicalAnchors(
+                            this, newRoad, sectionOnly, defaults)) {
+                    crossingMigrationFailure = true;
+                    return null;
+                }
+            }
+            if (!alongCapture.facilityIntervals().isEmpty()) {
+                double headLen = RoadStationing.canonicalLength(this, road);
+                double tailLen = RoadStationing.canonicalLength(this, newRoad);
+                var expectedHead = RoadStationDataTransforms.clipAndShiftFacilityIntervals(
+                    alongCapture.facilityIntervals(), 0.0, headLen);
+                var expectedTail = RoadStationDataTransforms.clipAndShiftFacilityIntervals(
+                    alongCapture.facilityIntervals(), splitStation, splitStation + tailLen);
+                var actualHead = RoadStationDataTransforms.captureFacilityIntervals(road, headLen);
+                var actualTail = RoadStationDataTransforms.captureFacilityIntervals(newRoad, tailLen);
+                if (!RoadStationDataTransforms.facilityIntervalsEqual(expectedHead, actualHead)
+                        || !RoadStationDataTransforms.facilityIntervalsEqual(expectedTail, actualTail)) {
+                    crossingMigrationFailure = true;
+                    return null;
+                }
             }
         }
         if (!RoadStationDataTransforms.rebindEditedProfileAfterFinalGeometry(
@@ -934,8 +953,10 @@ public class RoadNetwork {
         }
         var headAnchors = headCapture.anchors();
         var tailAnchors = tailCapture.anchors();
-        var headAlong = RoadStationDataTransforms.captureAlongTrackPhysicalAnchors(this, head);
-        var tailAlong = RoadStationDataTransforms.captureAlongTrackPhysicalAnchors(this, tail);
+        var headAlong = RoadStationDataTransforms.captureAlongTrackPhysicalAnchors(
+            this, head, List.of(), defaults);
+        var tailAlong = RoadStationDataTransforms.captureAlongTrackPhysicalAnchors(
+            this, tail, List.of(), defaults);
         if (headAlong.failed() || tailAlong.failed()) {
             return null;
         }
@@ -1002,13 +1023,40 @@ public class RoadNetwork {
             crossingMigrationFailure = true;
             return null;
         }
-        List<RoadStationDataTransforms.AlongTrackIdentityAnchor> mergedAlong = new ArrayList<>();
-        mergedAlong.addAll(headAlong.anchors());
-        mergedAlong.addAll(tailAlong.anchors());
-        if (!mergedAlong.isEmpty()
-                && !RoadStationDataTransforms.verifyAlongTrackPhysicalAnchors(this, head, mergedAlong)) {
+        List<RoadStationDataTransforms.AlongTrackIdentityAnchor> mergedSections = new ArrayList<>();
+        mergedSections.addAll(headAlong.sectionAnchors());
+        mergedSections.addAll(tailAlong.sectionAnchors());
+        var sectionOnly = RoadStationDataTransforms.AlongTrackAnchorCapture.ok(
+            mergedSections, List.of());
+        if (!sectionOnly.isEmpty()
+                && !RoadStationDataTransforms.verifyAlongTrackPhysicalAnchors(
+                    this, head, sectionOnly, defaults)) {
             crossingMigrationFailure = true;
             return null;
+        }
+        double facilityOffset = appendTail ? headLengthBefore : tailLengthBefore;
+        List<RoadStationDataTransforms.FacilityIntervalAnchor> baseSide =
+            appendTail ? headAlong.facilityIntervals() : tailAlong.facilityIntervals();
+        List<RoadStationDataTransforms.FacilityIntervalAnchor> offsetSide =
+            appendTail ? tailAlong.facilityIntervals() : headAlong.facilityIntervals();
+        List<RoadStationDataTransforms.FacilityIntervalAnchor> expectedFacilities =
+            new ArrayList<>(baseSide);
+        for (var interval : offsetSide) {
+            if (interval == null) {
+                continue;
+            }
+            expectedFacilities.add(new RoadStationDataTransforms.FacilityIntervalAnchor(
+                interval.identity(),
+                interval.start() + facilityOffset,
+                interval.end() + facilityOffset));
+        }
+        if (!expectedFacilities.isEmpty()) {
+            double mergedLen = RoadStationing.canonicalLength(this, head);
+            var actualFacilities = RoadStationDataTransforms.captureFacilityIntervals(head, mergedLen);
+            if (!RoadStationDataTransforms.facilityIntervalsEqual(expectedFacilities, actualFacilities)) {
+                crossingMigrationFailure = true;
+                return null;
+            }
         }
         if (!RoadStationDataTransforms.rebindEditedProfileAfterFinalGeometry(
                 this, head, wasValidEdited)) {

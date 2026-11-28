@@ -82,8 +82,7 @@ public final class CenterlinePhase2ConsistencyPolicy {
                 return false;
             }
         }
-        syncHorizontalAlignment(network, road);
-        return true;
+        return syncHorizontalAlignment(network, road);
     }
 
     /**
@@ -128,8 +127,16 @@ public final class CenterlinePhase2ConsistencyPolicy {
                 if (road != null) {
                     syncedRoads.add(road.getId());
                 }
-            } else if (road != null && syncedRoads.add(road.getId())) {
-                syncHorizontalAlignment(network, road);
+            } else if (road != null) {
+                // Null before-snapshot: refuse when HA/protected — do not silent-refit (R04/R05).
+                boolean protectedOrHa = road.getHorizontalAlignment() != null
+                    || network.hasProtectedAlongTrackData(road);
+                if (protectedOrHa) {
+                    return false;
+                }
+                if (syncedRoads.add(road.getId()) && !syncHorizontalAlignment(network, road)) {
+                    return false;
+                }
             }
         }
         return true;
@@ -146,13 +153,34 @@ public final class CenterlinePhase2ConsistencyPolicy {
         // Reverse Edge is storage-only — never refit/clear HA or rematerialize.
     }
 
-    private static void syncHorizontalAlignment(RoadNetwork network, Road road) {
+    /**
+     * Sync HA after centerline change. {@code INVALIDATED} is failure when the road had HA or
+     * protected along-track data (R05). Fitted HA must remain domain-reliable.
+     */
+    private static boolean syncHorizontalAlignment(RoadNetwork network, Road road) {
+        if (road == null) {
+            return true;
+        }
+        boolean hadHa = road.getHorizontalAlignment() != null
+            && !road.getHorizontalAlignment().isEmpty();
+        boolean protectedData = network != null && network.hasProtectedAlongTrackData(road);
         CenterlineHorizontalAlignmentSync.Outcome outcome =
             CenterlineHorizontalAlignmentSync.syncAfterCenterlineEdit(network, road);
+        if (outcome == CenterlineHorizontalAlignmentSync.Outcome.INVALIDATED
+                && (hadHa || protectedData)) {
+            return false;
+        }
         if (outcome == CenterlineHorizontalAlignmentSync.Outcome.FITTED
                 && HorizontalAlignmentCenterlineMaterializer.canMaterialize(network, road)) {
             HorizontalAlignmentCenterlineMaterializer.materialize(network, road);
         }
+        if (road.getHorizontalAlignment() != null) {
+            var map = com.plot.plugin.road.station.RoadStationing.domainMap(network, road);
+            if (map == null || !map.isReliable()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static Road roadForEdge(RoadNetwork network, String edgeId) {

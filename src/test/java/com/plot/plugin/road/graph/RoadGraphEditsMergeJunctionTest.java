@@ -46,14 +46,16 @@ class RoadGraphEditsMergeJunctionTest {
         assertTrue(merged.isPresent());
         assertEquals(survivor.getId(), merged.get());
         assertEquals(null, network.getNode(absorbed.getId()));
-        assertEquals(2, survivor.getDegree());
+        RoadNode liveSurvivor = network.getNode(survivor.getId());
+        assertNotNull(liveSurvivor);
+        assertEquals(2, liveSurvivor.getDegree());
 
         RoadEdge relinked = network.getEdge(absorbedEdge.getId());
         assertNotNull(relinked);
         assertEquals(survivor.getId(), relinked.getStartNodeId());
         assertTrue(RoadGeometryUtils.pointsNear(
             relinked.getCenterlinePoints().getFirst(),
-            survivor.getPosition(),
+            liveSurvivor.getPosition(),
             RoadNetworkBuilder.NODE_TOLERANCE));
         assertEquals(10.0, relinked.getLength(), 1e-6);
         assertTrue(RoadNetworkInvariantValidator.validate(network).valid());
@@ -81,14 +83,17 @@ class RoadGraphEditsMergeJunctionTest {
 
         assertEquals(8.0, RoadStationing.canonicalLength(network, roadB), 1e-6);
 
+        String roadBId = roadB.getId();
         Optional<String> merged = RoadGraphEdits.of(network).mergeJunctionNode(
             survivor.getId(), absorbed.getId());
         assertTrue(merged.isPresent());
 
-        assertEquals(10.0, RoadStationing.canonicalLength(network, roadB), 1e-6);
-        assertEquals(5.0, roadB.getVerticalAlignment().getPvis().get(0).getStation(), 1e-3);
-        assertEquals(10.0, roadB.getVerticalAlignment().getPvis().get(1).getStation(), 1e-3);
-        StationFacilityRun run = roadB.getStationFacilities().sortedRuns().getFirst();
+        Road liveB = network.getRoad(roadBId);
+        assertNotNull(liveB);
+        assertEquals(10.0, RoadStationing.canonicalLength(network, liveB), 1e-6);
+        assertEquals(5.0, liveB.getVerticalAlignment().getPvis().get(0).getStation(), 1e-3);
+        assertEquals(10.0, liveB.getVerticalAlignment().getPvis().get(1).getStation(), 1e-3);
+        StationFacilityRun run = liveB.getStationFacilities().sortedRuns().getFirst();
         assertEquals(7.5, run.getStartStation(), 1e-3);
         assertEquals(8.75, run.getEndStation(), 1e-3);
         assertTrue(RoadNetworkInvariantValidator.validate(network).valid());
