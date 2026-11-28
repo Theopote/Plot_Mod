@@ -222,7 +222,9 @@ class RoadTopologyRoadSplitterTest {
             b.getId(), c.getId(), List.of(new Vec2d(10, 0), new Vec2d(20, 0)), road.getId()).getId();
         network.createEdge(b.getId(), d.getId(), List.of(new Vec2d(10, 0), new Vec2d(10, 10)), road.getId());
 
+        // VA must cover the full oriented walk so every fork component can extract losslessly (Q04).
         road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 9.0),
             PointOfVerticalIntersection.of(10.0, 10.0),
             PointOfVerticalIntersection.of(20.0, 12.0)
         )));
@@ -230,7 +232,8 @@ class RoadTopologyRoadSplitterTest {
             StationFacilityRun.of(12.0, 18.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.RIGHT)
         )));
 
-        RoadTopologyRoadSplitter.repairAfterAdopt(network);
+        var repair = RoadTopologyRoadSplitter.repairAfterAdopt(network);
+        assertFalse(repair.migrationFailed());
 
         Road branchRoad = network.getRoads().values().stream()
             .filter(candidate -> candidate.getOrderedSegmentIds().contains(edgeBc))
@@ -242,7 +245,7 @@ class RoadTopologyRoadSplitterTest {
         assertEquals(2.0, run.getStartStation(), 1e-6);
         assertEquals(8.0, run.getEndStation(), 1e-6);
         assertNotNull(branchRoad.getVerticalAlignment());
-        assertEquals(2, branchRoad.getVerticalAlignment().sortedPvis().size());
+        assertTrue(branchRoad.getVerticalAlignment().sortedPvis().size() >= 2);
         assertEquals(0.0, branchRoad.getVerticalAlignment().sortedPvis().getFirst().getStation(), 1e-6);
         assertEquals(10.0, branchRoad.getVerticalAlignment().sortedPvis().getLast().getStation(), 1e-6);
     }

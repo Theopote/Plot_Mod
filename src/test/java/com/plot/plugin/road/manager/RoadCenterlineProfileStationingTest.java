@@ -63,17 +63,20 @@ class RoadCenterlineProfileStationingTest {
     }
 
     @Test
-    void splitEdgePreservesPvisButInvalidatesEditedSourceWhenTopologyChanges() {
+    void splitEdgePreservesPvisAndRebindsEditedSourceWhenTopologyChanges() {
         CenterlineEditResult result = manager.splitEdgeAtLocalDistance(edge.getId(), 40.0);
 
         assertTrue(result.isSuccess());
         assertEquals(RoadChangeKind.GEOMETRY, lastChangeKind.get());
-        assertEquals(2, road.getOrderedSegmentIds().size());
-        assertEquals(ProfileSource.AUTO, road.getEffectiveProfileSource());
-        assertEquals(3, road.getVerticalAlignment().pviCount());
-        assertEquals(0.0, road.getVerticalAlignment().getPvis().getFirst().getStation(), 1e-6);
-        assertEquals(50.0, road.getVerticalAlignment().getPvis().get(1).getStation(), 1e-6);
-        assertEquals(100.0, road.getVerticalAlignment().getPvis().get(2).getStation(), 1e-6);
+        Road after = network.getRoad(road.getId());
+        assertEquals(2, after.getOrderedSegmentIds().size());
+        // Q01: valid EDITED rebinds after edge-id topology change (does not fall back to AUTO).
+        assertEquals(ProfileSource.EDITED, after.getEffectiveProfileSource());
+        assertTrue(ResolvedProfileAuthority.hasValidEditedProfile(network, after));
+        assertEquals(3, after.getVerticalAlignment().pviCount());
+        assertEquals(0.0, after.getVerticalAlignment().getPvis().getFirst().getStation(), 1e-6);
+        assertEquals(50.0, after.getVerticalAlignment().getPvis().get(1).getStation(), 1e-6);
+        assertEquals(100.0, after.getVerticalAlignment().getPvis().get(2).getStation(), 1e-6);
     }
 
     @Test
@@ -101,10 +104,12 @@ class RoadCenterlineProfileStationingTest {
         CenterlineEditResult result = manager.mergeSegmentsAtNode(n2.getId());
 
         assertTrue(result.isSuccess());
-        assertEquals(1, mergeRoad.getOrderedSegmentIds().size());
-        assertEquals(ProfileSource.EDITED, mergeRoad.getEffectiveProfileSource());
-        assertEquals(3, mergeRoad.getVerticalAlignment().pviCount());
-        assertEquals(50.0, mergeRoad.getVerticalAlignment().getPvis().get(1).getStation(), 1e-6);
+        Road after = network.getRoad(mergeRoad.getId());
+        assertEquals(1, after.getOrderedSegmentIds().size());
+        assertEquals(ProfileSource.EDITED, after.getEffectiveProfileSource());
+        assertTrue(ResolvedProfileAuthority.hasValidEditedProfile(network, after));
+        assertEquals(3, after.getVerticalAlignment().pviCount());
+        assertEquals(50.0, after.getVerticalAlignment().getPvis().get(1).getStation(), 1e-6);
     }
 
     @Test

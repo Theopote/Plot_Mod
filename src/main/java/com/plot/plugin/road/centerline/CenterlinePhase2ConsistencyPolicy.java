@@ -8,6 +8,7 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.station.CenterlineEditOperation;
 import com.plot.plugin.road.station.CenterlineEditStationPolicy;
 import com.plot.plugin.road.station.RoadStationDataTransforms.SegmentGeometrySnapshot;
+import com.plot.plugin.road.station.StationMigrationRefuseException;
 
 import java.util.HashSet;
 import java.util.List;
@@ -40,29 +41,31 @@ public final class CenterlinePhase2ConsistencyPolicy {
 
     /**
      * 段几何变化：Insert/Delete PI、Fillet。
+     *
+     * @return false when the edit must be refused (unreliable HA map / remap failure)
      */
-    public static void afterSegmentGeometryEdit(
+    public static boolean afterSegmentGeometryEdit(
             RoadNetwork network,
             CenterlineEditOperation operation,
             String edgeId,
             SegmentGeometrySnapshot before) {
         if (network == null || edgeId == null || before == null) {
-            return;
+            return false;
         }
         RoadEdge edge = network.getEdge(edgeId);
         if (edge == null || edge.getRoadId() == null) {
-            return;
+            return true;
         }
         Road road = network.getRoadForEdge(edge);
         if (road == null) {
-            return;
+            return false;
         }
         // Length-change policy uses instance polyline; station remap uses canonical lengths.
         // With HA present, refuse when domain map is unreliable — instance ratio ≠ canonical authority.
         if (road.getHorizontalAlignment() != null) {
             var map = com.plot.plugin.road.station.RoadStationing.domainMap(network, road);
             if (map == null || !map.isReliable()) {
-                return;
+                return false;
             }
         }
         CenterlineEditStationPolicy policy = operation.resolveStationPolicy(
@@ -73,9 +76,14 @@ public final class CenterlinePhase2ConsistencyPolicy {
                 ? edge.getLength() / before.instanceLength()
                 : 1.0;
             double newCanonicalLength = before.oldSegmentLength() * ratio;
-            policy.applySegmentGeometryEdit(road, before, newCanonicalLength);
+            try {
+                policy.applySegmentGeometryEdit(road, before, newCanonicalLength);
+            } catch (StationMigrationRefuseException refused) {
+                return false;
+            }
         }
         syncHorizontalAlignment(network, road);
+        return true;
     }
 
     /**
@@ -94,12 +102,14 @@ public final class CenterlinePhase2ConsistencyPolicy {
 
     /**
      * 邻近交叉点合并：对每条重连边按段长变化重映射沿桩号工程数据，并同步 HA。
+     *
+     * @return false if any segment remap must refuse
      */
-    public static void afterJunctionNodeMerge(
+    public static boolean afterJunctionNodeMerge(
             RoadNetwork network,
             List<JunctionMergeEdgeEdit> edits) {
         if (network == null || edits == null || edits.isEmpty()) {
-            return;
+            return true;
         }
         Set<String> syncedRoads = new HashSet<>();
         for (JunctionMergeEdgeEdit edit : edits) {
@@ -108,11 +118,13 @@ public final class CenterlinePhase2ConsistencyPolicy {
             }
             Road road = roadForEdge(network, edit.edgeId());
             if (edit.before() != null) {
-                afterSegmentGeometryEdit(
-                    network,
-                    CenterlineEditOperation.MERGE_JUNCTION_NODE,
-                    edit.edgeId(),
-                    edit.before());
+                if (!afterSegmentGeometryEdit(
+                        network,
+                        CenterlineEditOperation.MERGE_JUNCTION_NODE,
+                        edit.edgeId(),
+                        edit.before())) {
+                    return false;
+                }
                 if (road != null) {
                     syncedRoads.add(road.getId());
                 }
@@ -120,6 +132,7 @@ public final class CenterlinePhase2ConsistencyPolicy {
                 syncHorizontalAlignment(network, road);
             }
         }
+        return true;
     }
 
     public record JunctionMergeEdgeEdit(String edgeId, SegmentGeometrySnapshot before) {

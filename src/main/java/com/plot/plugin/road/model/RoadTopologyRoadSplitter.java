@@ -1,5 +1,6 @@
 package com.plot.plugin.road.model;
 
+import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadStationDataTransforms;
 import com.plot.plugin.road.station.RoadStationDataTransforms.StationDataSnapshot;
 import com.plot.plugin.road.station.RoadStationDataTransforms.StationRange;
@@ -353,18 +354,31 @@ public final class RoadTopologyRoadSplitter {
         if (mapStationData) {
             keepIndex = pickExtractableKeepIndex(
                 components, componentRanges, snapshot, totalLength, keepIndex);
-            List<StationRange> keepRuns = componentRanges.get(keepIndex);
-            if (keepRuns.size() > 1) {
-                // Non-contiguous station coverage cannot be extracted losslessly.
-                return -1;
+            // Dry-run every component against the original snapshot before mutating (Q04).
+            for (int i = 0; i < components.size(); i++) {
+                List<StationRange> runs = componentRanges.get(i);
+                if (runs.size() > 1) {
+                    return -1;
+                }
+                if (runs.size() == 1) {
+                    Road scratch = new Road("distribute-dry-run-" + i);
+                    if (!snapshot.applyRangeTo(scratch, totalLength, runs.getFirst()).isSuccess()) {
+                        return -1;
+                    }
+                } else if (componentShouldHaveStationCoverage(
+                        network, road, components.get(i), totalLength)) {
+                    // hasPhase2Data + oriented walk should cover this component — empty is refuse.
+                    return -1;
+                }
             }
+            List<StationRange> keepRuns = componentRanges.get(keepIndex);
             if (keepRuns.size() == 1) {
                 var keepResult = snapshot.applyRangeTo(road, totalLength, keepRuns.getFirst());
                 if (!keepResult.isSuccess()) {
                     return -1;
                 }
             } else {
-                // No walk coverage on this component — clear rather than keep stale full-road data.
+                // Truly uncovered orphan: scratch stays empty (no stale full-road inherit).
                 clearStationEngineeringData(road);
             }
             if (snapshot.hadHorizontalAlignment()) {
@@ -381,25 +395,23 @@ public final class RoadTopologyRoadSplitter {
             if (i == keepIndex) {
                 continue;
             }
+            // New components accept only snapshot extract — never inherit from cropped keep.
             Road splitRoad = network.createRoad();
-            splitRoad.copyEngineeringFrom(road);
             splitRoad.setTopologyMode(RoadTopologyMode.LINEAR);
             applyBranchName(road, splitRoad, branchIndex++);
             if (mapStationData) {
                 List<StationRange> runs = componentRanges.get(i);
-                if (runs.size() > 1) {
-                    return -1;
-                }
                 if (runs.size() == 1) {
                     var branchResult = snapshot.applyRangeTo(splitRoad, totalLength, runs.getFirst());
                     if (!branchResult.isSuccess()) {
                         return -1;
                     }
                 }
-                // Empty runs: leave null station data (no coverage in authority walk).
                 if (snapshot.hadHorizontalAlignment()) {
                     splitRoad.setHorizontalAlignment(null);
                 }
+            } else {
+                splitRoad.copyEngineeringFrom(road);
             }
             reassignComponent(network, splitRoad, components.get(i));
             intentSnapshot.applyTo(network, splitRoad, components.get(i));
@@ -432,6 +444,27 @@ public final class RoadTopologyRoadSplitter {
             }
         }
         return created;
+    }
+
+    /**
+     * True when the component participates in the oriented walk and therefore should receive a
+     * non-empty station extract when the source has Phase-2 data.
+     */
+    private static boolean componentShouldHaveStationCoverage(
+            RoadNetwork network,
+            Road road,
+            Set<String> component,
+            double totalLength) {
+        if (network == null || road == null || component == null || component.isEmpty()
+                || !(totalLength > 1e-6)) {
+            return false;
+        }
+        for (OrientedRoadSegment segment : RoadStationing.orientedSegments(network, road)) {
+            if (segment != null && component.contains(segment.edgeId())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void clearStationEngineeringData(Road road) {

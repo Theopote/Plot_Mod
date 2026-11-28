@@ -1,8 +1,8 @@
 package com.plot.plugin.road.station;
 
-/** Internal refuse signal for lossless station migration helpers. */
-final class StationMigrationRefuseException extends RuntimeException {
-    StationMigrationRefuseException(String message) {
+/** Refuse signal for lossless station migration helpers (propagates to edit fail-closed paths). */
+public final class StationMigrationRefuseException extends RuntimeException {
+    public StationMigrationRefuseException(String message) {
         super(message != null ? message : "station migration refused");
     }
 }

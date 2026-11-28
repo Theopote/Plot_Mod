@@ -86,7 +86,7 @@ class RoadCenterlineEditorTest {
         assertTrue(result.isSuccess());
         assertNotNull(result.firstEdgeId());
         assertNotNull(result.secondEdgeId());
-        assertEquals(2, road.getSegmentIds().size());
+        assertEquals(2, network.getRoad(road.getId()).getSegmentIds().size());
     }
 
     @Test
@@ -403,7 +403,8 @@ class RoadCenterlineEditorTest {
         CenterlineEditResult result = RoadCenterlineEditor.mergeThroughNode(network, n2.getId());
 
         assertTrue(result.isSuccess());
-        assertEquals(1, road.getSegmentIds().size());
-        assertEquals(100.0, network.getEdge(road.getOrderedSegmentIds().getFirst()).getLength(), 1e-6);
+        Road after = network.getRoad(road.getId());
+        assertEquals(1, after.getSegmentIds().size());
+        assertEquals(100.0, network.getEdge(after.getOrderedSegmentIds().getFirst()).getLength(), 1e-6);
     }
 }

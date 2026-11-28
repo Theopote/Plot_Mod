@@ -190,6 +190,45 @@ public final class HorizontalAlignmentGeometry {
         };
     }
 
+    /** Reverse HA so the former end becomes the new origin (design-opposed extract). */
+    public static RoadHorizontalAlignment reverse(RoadHorizontalAlignment alignment) {
+        if (alignment == null || alignment.isEmpty()) {
+            return alignment != null ? alignment.copy() : null;
+        }
+        double total = alignment.totalLength();
+        Optional<AlignmentPose> endPose = poseAt(alignment, total);
+        if (endPose.isEmpty()) {
+            return alignment.copy();
+        }
+        List<HorizontalAlignmentElement> reversed = new ArrayList<>();
+        List<HorizontalAlignmentElement> elements = alignment.getElements();
+        for (int i = elements.size() - 1; i >= 0; i--) {
+            HorizontalAlignmentElement element = elements.get(i);
+            reversed.add(switch (element.getType()) {
+                case TANGENT -> HorizontalAlignmentElement.tangent(element.getLength());
+                case CIRCULAR_ARC -> HorizontalAlignmentElement.circularArc(
+                    element.getLength(),
+                    element.getRadius(),
+                    element.getDirection() == TurnDirection.LEFT
+                        ? TurnDirection.RIGHT
+                        : TurnDirection.LEFT);
+                case SPIRAL -> HorizontalAlignmentElement.spiral(
+                    element.getLength(), element.getSpiralParameterA());
+            });
+        }
+        double bearing = endPose.get().bearingRadians() + Math.PI;
+        while (bearing <= -Math.PI) {
+            bearing += 2.0 * Math.PI;
+        }
+        while (bearing > Math.PI) {
+            bearing -= 2.0 * Math.PI;
+        }
+        return new RoadHorizontalAlignment(
+            new Vec2d(endPose.get().x(), endPose.get().y()),
+            bearing,
+            reversed);
+    }
+
     public static double elementStartChainage(RoadHorizontalAlignment alignment, int elementIndex) {
         if (alignment == null || elementIndex < 0) {
             return -1.0;

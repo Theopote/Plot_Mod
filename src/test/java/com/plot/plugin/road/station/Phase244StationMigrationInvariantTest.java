@@ -36,6 +36,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -207,9 +208,12 @@ class Phase244StationMigrationInvariantTest {
         Road t = new Road("t");
         head.setCrossSection(def.copy());
         head.setVariableCrossSections(smooth);
-        String beforeJson = head.getVariableCrossSections().toString()
-            + "|" + head.getVerticalAlignment();
+        String beforeSnapshot = head.getVariableCrossSections().toString()
+            + "|" + head.getVerticalAlignment()
+            + "|" + head.getCrossSection();
         RoadSystemConfig cfg = new RoadSystemConfig("phase244");
+        var expectedMid = VariableCrossSectionResolver.resolve(
+            def, smooth.sortedStations(), VariableCrossSectionTransitionMode.SMOOTH, 40.0, cfg);
         StationMigrationResult result = RoadStationDataTransforms.applyRoadSplit(
             head, t, 40.0, 100.0, cfg);
         if (result.isSuccess()) {
@@ -218,18 +222,23 @@ class Phase244StationMigrationInvariantTest {
             assertNotNull(t.getVariableCrossSections());
             assertEquals(VariableCrossSectionTransitionMode.SMOOTH,
                 t.getVariableCrossSections().getTransitionMode());
-            var atHead = VariableCrossSectionResolver.resolve(
+            var atHeadEnd = VariableCrossSectionResolver.resolve(
                 head.getCrossSection(), head.getVariableCrossSections().sortedStations(),
-                VariableCrossSectionTransitionMode.SMOOTH, 20.0, cfg);
-            var atTail = VariableCrossSectionResolver.resolve(
+                VariableCrossSectionTransitionMode.SMOOTH, 40.0, cfg);
+            var atTailStart = VariableCrossSectionResolver.resolve(
                 t.getCrossSection() != null ? t.getCrossSection() : head.getCrossSection(),
                 t.getVariableCrossSections().sortedStations(),
-                VariableCrossSectionTransitionMode.SMOOTH, 20.0, cfg);
-            assertTrue(atHead.carriagewayWidth > 0);
-            assertTrue(atTail.carriagewayWidth > 0);
+                VariableCrossSectionTransitionMode.SMOOTH, 0.0, cfg);
+            assertTrue(atHeadEnd.displayEquals(expectedMid),
+                "success must preserve resolved section at split (displayEquals)");
+            assertTrue(atTailStart.displayEquals(expectedMid),
+                "tail start must match pre-split boundary section");
         } else {
-            assertEquals(beforeJson,
-                head.getVariableCrossSections().toString() + "|" + head.getVerticalAlignment());
+            assertEquals(beforeSnapshot,
+                head.getVariableCrossSections().toString()
+                    + "|" + head.getVerticalAlignment()
+                    + "|" + head.getCrossSection(),
+                "failure must leave full engineering snapshot unchanged");
             assertNull(t.getVariableCrossSections());
         }
     }
@@ -405,7 +414,7 @@ class Phase244StationMigrationInvariantTest {
             PointOfVerticalIntersection.of(30.0, 11.0)));
         assertNull(RoadStationDataTransforms.extractVerticalAlignmentRange(curved, 0.0, 15.0));
 
-        // Forced success: reliable circular-arc HA + matching sampled polyline → HA extract split.
+        // Forced success: reliable circular-arc HA + VA + VCS + facilities → extract + physical check.
         double radius = 40.0;
         double arcLen = Math.PI * radius / 2.0;
         RoadHorizontalAlignment arcHa = new RoadHorizontalAlignment(
@@ -426,9 +435,29 @@ class Phase244StationMigrationInvariantTest {
         arcRoad.setHorizontalAlignment(arcHa);
         arcRoad.setDesignEntryEdgeId(arcHeadEdge);
         arcRoad.setDesignEntryNodeId(a0.getId());
+        double arcTotal = RoadStationing.canonicalLength(network, arcRoad);
+        double splitSta = RoadStationing.segmentStartStation(network, arcRoad, arcSplit);
+        arcRoad.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 10.0),
+            PointOfVerticalIntersection.of(splitSta * 0.5, 11.0),
+            PointOfVerticalIntersection.of(arcTotal, 12.0))));
+        arcRoad.setVariableCrossSections(new RoadVariableCrossSections(List.of(
+            StationCrossSection.at(0.0, section(8)),
+            StationCrossSection.at(splitSta * 0.4, section(10))),
+            VariableCrossSectionTransitionMode.STEP));
+        arcRoad.setStationFacilities(new RoadStationFacilities(List.of(
+            StationFacilityRun.of(1.0, splitSta * 0.6, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.LEFT))));
+        double elevBefore = VerticalAlignmentGeometry.elevationAt(
+            arcRoad.getVerticalAlignment(), splitSta * 0.5).orElseThrow();
+        var vaCap = RoadStationDataTransforms.captureVaPhysicalAnchors(
+            network, arcRoad, List.of(splitSta));
+        var alongCap = RoadStationDataTransforms.captureAlongTrackPhysicalAnchors(
+            network, arcRoad, List.of(splitSta));
+        assertFalse(vaCap.failed());
+        assertFalse(alongCap.failed());
         assertTrue(RoadStationing.domainMap(network, arcRoad).isReliable(),
             "arc HA + matching samples must be reliable");
-        assertTrue(RoadStationing.segmentStartStation(network, arcRoad, arcSplit) > 1.0);
+        assertTrue(splitSta > 1.0);
         String arcNew = manager.splitRoadBeforeSegment(arcRoad.getId(), arcSplit);
         network = manager.getNetwork();
         assertNotNull(arcNew, "reliable arc HA + matching polyline must split via extract");
@@ -438,6 +467,16 @@ class Phase244StationMigrationInvariantTest {
         assertNotNull(arcTail.getHorizontalAlignment());
         assertTrue(RoadStationing.domainMap(network, arcHead).isReliable());
         assertTrue(RoadStationing.domainMap(network, arcTail).isReliable());
+        assertTrue(RoadStationDataTransforms.verifyVaPhysicalAnchors(network, arcHead, vaCap.anchors()));
+        assertTrue(RoadStationDataTransforms.verifyVaPhysicalAnchors(network, arcTail, vaCap.anchors()));
+        assertTrue(RoadStationDataTransforms.verifyAlongTrackPhysicalAnchors(
+            network, arcHead, alongCap.anchors()));
+        assertTrue(RoadStationDataTransforms.verifyAlongTrackPhysicalAnchors(
+            network, arcTail, alongCap.anchors()));
+        assertEquals(elevBefore,
+            VerticalAlignmentGeometry.elevationAt(arcHead.getVerticalAlignment(), splitSta * 0.5)
+                .orElseThrow(),
+            1e-2);
     }
 
     @Test
@@ -638,14 +677,15 @@ class Phase244StationMigrationInvariantTest {
 
     @Test
     void openMergeToLoopPreservesVaVcsFacilitiesAndSpliceOrigin() {
+        // Non-min-XY design origin at (40,0): min-XY would be (0,0) — seam must stay at splice.
         Road head = network.createRoad("loop-head");
-        RoadNode n0 = network.createNode(new Vec2d(0, 0));
-        RoadNode n1 = network.createNode(new Vec2d(40, 0));
-        RoadNode n2 = network.createNode(new Vec2d(40, 40));
+        RoadNode n0 = network.createNode(new Vec2d(40, 0));
+        RoadNode n1 = network.createNode(new Vec2d(40, 40));
+        RoadNode n2 = network.createNode(new Vec2d(0, 40));
         network.createEdge(n0.getId(), n1.getId(),
-            List.of(new Vec2d(0, 0), new Vec2d(40, 0)), head.getId());
-        network.createEdge(n1.getId(), n2.getId(),
             List.of(new Vec2d(40, 0), new Vec2d(40, 40)), head.getId());
+        network.createEdge(n1.getId(), n2.getId(),
+            List.of(new Vec2d(40, 40), new Vec2d(0, 40)), head.getId());
         head.setDesignEntryEdgeId(head.getOrderedSegmentIds().getFirst());
         head.setDesignEntryNodeId(n0.getId());
         head.setVerticalAlignment(new RoadVerticalAlignment(List.of(
@@ -659,11 +699,11 @@ class Phase244StationMigrationInvariantTest {
             StationFacilityRun.of(5.0, 60.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.LEFT))));
 
         Road tail = network.createRoad("loop-tail");
-        RoadNode n3 = network.createNode(new Vec2d(0, 40));
+        RoadNode n3 = network.createNode(new Vec2d(0, 0));
         String tailFirst = network.createEdge(n2.getId(), n3.getId(),
-            List.of(new Vec2d(40, 40), new Vec2d(0, 40)), tail.getId()).getId();
+            List.of(new Vec2d(0, 40), new Vec2d(0, 0)), tail.getId()).getId();
         network.createEdge(n3.getId(), n0.getId(),
-            List.of(new Vec2d(0, 40), new Vec2d(0, 0)), tail.getId());
+            List.of(new Vec2d(0, 0), new Vec2d(40, 0)), tail.getId());
         // Bind tail walk n2→n0 so append is forward (no reverse + protected refuse).
         tail.setDesignEntryEdgeId(tailFirst);
         tail.setDesignEntryNodeId(n2.getId());
@@ -686,8 +726,17 @@ class Phase244StationMigrationInvariantTest {
         assertTrue(RoadLoopSeamService.isSeamResolvable(network, after));
         Vec2d seamPos = RoadLoopSeamService.overlayPosition(network, after);
         assertNotNull(seamPos);
-        assertEquals(0.0, seamPos.x, 0.5);
+        assertEquals(40.0, seamPos.x, 0.5, "seam must stay at non-min-XY splice origin");
         assertEquals(0.0, seamPos.y, 0.5);
+        Optional<Vec2d> atZero = RoadStationing.pointAtStation(network, after, 0.0);
+        assertTrue(atZero.isPresent());
+        assertEquals(40.0, atZero.get().x, 0.5);
+        assertEquals(0.0, atZero.get().y, 0.5);
+        // Design direction: station grows away from (40,0) toward (40,40), not toward min-XY (0,0).
+        Optional<Vec2d> atSmall = RoadStationing.pointAtStation(network, after, 10.0);
+        assertTrue(atSmall.isPresent());
+        assertEquals(40.0, atSmall.get().x, 1.0);
+        assertTrue(atSmall.get().y > 5.0, "design direction must climb +Y from splice, not toward (0,0)");
         assertNotNull(after.getVerticalAlignment());
         assertTrue(after.getVerticalAlignment().pviCount() >= 3);
         assertNotNull(after.getVariableCrossSections());
@@ -746,6 +795,144 @@ class Phase244StationMigrationInvariantTest {
         network.createEdge(n3.getId(), n0.getId(),
             List.of(new Vec2d(0, edge), new Vec2d(0, 0)), road.getId());
         return road;
+    }
+
+    @Test
+    void intactVerticalCurveSurvivesSplitWithElevationAtEquivalence() {
+        Road road = linearRoad(3, 40.0);
+        // Curve fully inside first 40m; split at 40 leaves curve intact on head.
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 10.0),
+            PointOfVerticalIntersection.withCurve(20.0, 14.0, 16.0),
+            PointOfVerticalIntersection.of(40.0, 12.0),
+            PointOfVerticalIntersection.of(120.0, 11.0))));
+        double elev10 = VerticalAlignmentGeometry.elevationAt(
+            road.getVerticalAlignment(), 10.0).orElseThrow();
+        double elev20 = VerticalAlignmentGeometry.elevationAt(
+            road.getVerticalAlignment(), 20.0).orElseThrow();
+        double elev30 = VerticalAlignmentGeometry.elevationAt(
+            road.getVerticalAlignment(), 30.0).orElseThrow();
+        String splitSeg = road.getOrderedSegmentIds().get(1);
+        String tailId = manager.splitRoadBeforeSegment(road.getId(), splitSeg);
+        network = manager.getNetwork();
+        assertNotNull(tailId);
+        Road head = network.getRoad(road.getId());
+        assertEquals(elev10,
+            VerticalAlignmentGeometry.elevationAt(head.getVerticalAlignment(), 10.0).orElseThrow(),
+            1e-2);
+        assertEquals(elev20,
+            VerticalAlignmentGeometry.elevationAt(head.getVerticalAlignment(), 20.0).orElseThrow(),
+            1e-2);
+        assertEquals(elev30,
+            VerticalAlignmentGeometry.elevationAt(head.getVerticalAlignment(), 30.0).orElseThrow(),
+            1e-2);
+    }
+
+    @Test
+    void validEditedPlusStaleEditedMergeRefuses() {
+        Road head = linearRoad(1, 40.0);
+        head.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 10.0),
+            PointOfVerticalIntersection.of(40.0, 11.0))));
+        ResolvedProfileAuthority.markEditedProfileConfirmed(network, head);
+        assertTrue(ResolvedProfileAuthority.hasValidEditedProfile(network, head));
+
+        Road tail = network.createRoad("stale-tail");
+        // Share head exit node so merge can append.
+        String headExit = RoadStationing.chainExitNodeId(network, head).orElseThrow();
+        RoadNode shared = network.getNode(headExit);
+        RoadNode t1 = network.createNode(new Vec2d(80, 0));
+        network.createEdge(shared.getId(), t1.getId(),
+            List.of(shared.getPosition().copy(), t1.getPosition().copy()), tail.getId());
+        tail.setDesignEntryEdgeId(tail.getOrderedSegmentIds().getFirst());
+        tail.setDesignEntryNodeId(shared.getId());
+        tail.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 11.0),
+            PointOfVerticalIntersection.of(40.0, 12.0))));
+        tail.setProfileSource(ProfileSource.EDITED);
+        tail.setEditedGeometrySignature(999_002);
+        assertFalse(ResolvedProfileAuthority.hasValidEditedProfile(network, tail));
+
+        String before = network.toJson();
+        assertNull(manager.mergeRoadTailIntoHead(head.getId(), tail.getId()));
+        network = manager.getNetwork();
+        assertEquals(before, network.toJson());
+    }
+
+    @Test
+    void opposedHaSplitUsesNativeExtractOrRefusesCleanly() {
+        Road road = network.createRoad("opposed-ha");
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(40, 0));
+        RoadNode c = network.createNode(new Vec2d(80, 0));
+        // Edges stored reverse of design A→B→C.
+        String e1 = network.createEdge(b.getId(), a.getId(),
+            List.of(new Vec2d(40, 0), new Vec2d(0, 0)), road.getId()).getId();
+        String e2 = network.createEdge(c.getId(), b.getId(),
+            List.of(new Vec2d(80, 0), new Vec2d(40, 0)), road.getId()).getId();
+        road.setDesignEntryEdgeId(e1);
+        road.setDesignEntryNodeId(a.getId());
+        road.setHorizontalAlignment(new RoadHorizontalAlignment(
+            new Vec2d(0, 0), 0.0, List.of(HorizontalAlignmentElement.tangent(80.0))));
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 10.0),
+            PointOfVerticalIntersection.of(40.0, 11.0),
+            PointOfVerticalIntersection.of(80.0, 12.0))));
+        assertTrue(RoadStationing.isPhysicalWalkOpposedToDesign(network, road)
+            || RoadStationing.domainMap(network, road).isReliable());
+        String before = network.toJson();
+        String newId = manager.splitRoadBeforeSegment(road.getId(), e2);
+        network = manager.getNetwork();
+        if (newId == null) {
+            assertEquals(before, network.toJson(), "opposed HA refuse must leave live unchanged");
+        } else {
+            Road head = network.getRoad(road.getId());
+            Road tail = network.getRoad(newId);
+            assertNotNull(head.getHorizontalAlignment());
+            assertNotNull(tail.getHorizontalAlignment());
+            assertTrue(RoadStationing.domainMap(network, head).isReliable());
+            assertTrue(RoadStationing.domainMap(network, tail).isReliable());
+            assertEquals(10.0,
+                VerticalAlignmentGeometry.elevationAt(head.getVerticalAlignment(), 0.0).orElseThrow(),
+                1e-2);
+            assertEquals(11.0,
+                VerticalAlignmentGeometry.elevationAt(tail.getVerticalAlignment(), 0.0).orElseThrow(),
+                1e-2);
+        }
+    }
+
+    @Test
+    void splitEdgeCrossingUnresolvedLeavesJsonUnchanged() {
+        Road road = linearRoad(1, 40.0);
+        Road other = network.createRoad("other");
+        RoadNode o0 = network.createNode(new Vec2d(20, -20));
+        RoadNode o1 = network.createNode(new Vec2d(20, 20));
+        network.createEdge(o0.getId(), o1.getId(),
+            List.of(new Vec2d(20, -20), new Vec2d(20, 20)), other.getId());
+        network.registerCrossing(com.plot.plugin.road.crossing.RoadCrossing.atGrade(
+            road.getId(), 9_999.0, other.getId(), 20.0, new Vec2d(20, 0)));
+        String edgeId = road.getOrderedSegmentIds().getFirst();
+        String before = network.toJson();
+        assertFalse(RoadCenterlineEditor.splitAtLocalDistance(network, edgeId, 20.0).isSuccess());
+        assertEquals(before, network.toJson());
+    }
+
+    @Test
+    void illegalHaMappingGeometryEditLeavesNetworkUnchanged() {
+        Road road = linearRoad(1, 40.0);
+        // Arc HA vs straight polyline → unreliable domain; geometry edit must fail closed.
+        road.setHorizontalAlignment(new RoadHorizontalAlignment(
+            new Vec2d(0, 0),
+            0.0,
+            List.of(HorizontalAlignmentElement.circularArc(40.0, 30.0, TurnDirection.LEFT))));
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 10.0),
+            PointOfVerticalIntersection.of(40.0, 11.0))));
+        assertFalse(RoadStationing.domainMap(network, road).isReliable());
+        String edgeId = road.getOrderedSegmentIds().getFirst();
+        String before = network.toJson();
+        assertFalse(RoadCenterlineEditor.insertPiAtLocalDistance(network, edgeId, 20.0).isSuccess());
+        assertEquals(before, network.toJson());
     }
 
     private static RoadCrossSection section(int width) {

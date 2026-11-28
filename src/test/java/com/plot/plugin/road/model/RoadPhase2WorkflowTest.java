@@ -87,7 +87,9 @@ class RoadPhase2WorkflowTest {
         assertTrue(previewBeforeEdits.placementRecords.size() > 0
             || !previewBeforeEdits.roadBlocks.isEmpty());
 
+        String roadId = road.getId();
         splitRoadAtMidStation(network, road);
+        road = network.getRoad(roadId);
         reverseTailEdgeStorage(network, road);
 
         RoadGenerationResult previewAfterGraphEdits = generateRoad(network, road);
@@ -95,6 +97,7 @@ class RoadPhase2WorkflowTest {
         assertPhase2EngineeringSemantics(network, road);
 
         assertTrue(RoadCenterlineEditor.reverseRoad(network, road).isSuccess());
+        road = network.getRoad(roadId);
 
         assertMirroredStationDataAfterWholeRoadReverse(network, road);
 
@@ -214,8 +217,9 @@ class RoadPhase2WorkflowTest {
         String edgeId = RoadSegmentOrdering.orderedSegmentIds(network, road).getFirst();
         assertTrue(RoadCenterlineEditor.splitAtRoadStation(
             network, road, edgeId, SPLIT_STATION).isSuccess());
-        assertEquals(2, road.getSegmentIds().size());
-        assertEquals(ROAD_LENGTH, RoadStationing.canonicalLength(network, road), 1e-6);
+        Road after = network.getRoad(road.getId());
+        assertEquals(2, after.getSegmentIds().size());
+        assertEquals(ROAD_LENGTH, RoadStationing.canonicalLength(network, after), 1e-6);
     }
 
     private static void reverseTailEdgeStorage(RoadNetwork network, Road road) {

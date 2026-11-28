@@ -232,7 +232,7 @@ class CenterlineEditorApplierTest {
     }
 
     @Test
-    void applyToLiveInvalidatesEditedProfileAfterSplit() {
+    void applyToLiveRebindsEditedProfileAfterSplit() {
         RoadNetworkManager manager = new RoadNetworkManager(new RoadSystemConfig("test"), new RoadProjectStatus());
         live = manager.getNetwork();
         Road road = live.createRoad("split-profile");
@@ -255,8 +255,11 @@ class CenterlineEditorApplierTest {
         ctxCommitCenterline(manager, working, roadId);
         manager.invalidateEditedProfilesIfGeometryChanged();
 
-        assertEquals(ProfileSource.AUTO, road.getEffectiveProfileSource());
-        assertEquals(2, road.getOrderedSegmentIds().size());
+        Road after = manager.getNetwork().getRoad(roadId);
+        // Q01: Split Edge rebinds valid EDITED; geometry signature matches post-split topology.
+        assertEquals(ProfileSource.EDITED, after.getEffectiveProfileSource());
+        assertTrue(ResolvedProfileAuthority.hasValidEditedProfile(manager.getNetwork(), after));
+        assertEquals(2, after.getOrderedSegmentIds().size());
     }
 
     private static void ctxCommitCenterline(RoadNetworkManager manager, RoadNetwork working, String roadId) {

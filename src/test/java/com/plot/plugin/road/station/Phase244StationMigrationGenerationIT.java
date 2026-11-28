@@ -65,20 +65,22 @@ class Phase244StationMigrationGenerationIT {
         assertFalse(beforeMark.isEmpty(), "markings must be non-empty");
         assertFalse(beforeRail.isEmpty(), "guardrails must be non-empty");
 
+        String roadId = road.getId();
         String edgeId = road.getOrderedSegmentIds().getFirst();
         assertTrue(RoadCenterlineEditor.splitAtLocalDistance(network, edgeId, 20.0).isSuccess());
         assertAllEdgesSuccess(generator, network, terrain);
-        // Pure topology edge split preserves HA/profile binding — reconfirm if still valid.
-        if (!ResolvedProfileAuthority.hasValidEditedProfile(network, road)) {
-            ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
-        }
-        String midNode = network.getEdge(road.getOrderedSegmentIds().getFirst()).getEndNodeId();
+        Road afterSplit = network.getRoad(roadId);
+        assertNotNull(afterSplit);
+        assertTrue(ResolvedProfileAuthority.hasValidEditedProfile(network, afterSplit),
+            "Split Edge must rebind EDITED without test compensation");
+        String midNode = network.getEdge(afterSplit.getOrderedSegmentIds().getFirst()).getEndNodeId();
         assertTrue(RoadCenterlineEditor.mergeThroughNode(network, midNode).isSuccess());
         assertAllEdgesSuccess(generator, network, terrain);
-        if (!ResolvedProfileAuthority.hasValidEditedProfile(network, road)) {
-            ResolvedProfileAuthority.markEditedProfileConfirmed(network, road);
-        }
-        assertTrue(ResolvedProfileAuthority.usesEditedProfileForGeneration(network, road),
+        Road afterMerge = network.getRoad(roadId);
+        assertNotNull(afterMerge);
+        assertTrue(ResolvedProfileAuthority.hasValidEditedProfile(network, afterMerge),
+            "Merge Edge must rebind EDITED without test compensation");
+        assertTrue(ResolvedProfileAuthority.usesEditedProfileForGeneration(network, afterMerge),
             "generation must use EDITED, not AUTO fallback");
 
         Set<BlockPos> afterRoad = generateLayer(generator, network, terrain, RoadSolidLayer.ROAD);

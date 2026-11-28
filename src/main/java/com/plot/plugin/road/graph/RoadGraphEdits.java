@@ -684,7 +684,10 @@ public final class RoadGraphEdits {
         if (absorbed.getDegree() == 0) {
             network.removeNode(absorbedId);
         }
-        CenterlinePhase2ConsistencyPolicy.afterJunctionNodeMerge(network, relinks);
+        if (!CenterlinePhase2ConsistencyPolicy.afterJunctionNodeMerge(network, relinks)) {
+            rollbackJunctionMerge(relinks, snapshots, absorbedId);
+            return Optional.empty();
+        }
         return Optional.of(survivorId);
     }
 

@@ -924,6 +924,9 @@ public final class RoadNetworkManager {
                 StationDataSnapshot stationSnapshot = roadBefore != null
                     ? StationDataSnapshot.capture(roadBefore)
                     : null;
+                boolean priorEditedValid = roadBefore != null
+                    && com.plot.plugin.road.vertical.ResolvedProfileAuthority
+                        .hasValidEditedProfile(network, roadBefore);
                 List<EdgeStationSpan> edgeSpansBefore = captureEdgeStationSpans(roadBefore);
                 if (roadBefore != null && network.hasProtectedAlongTrackData(roadBefore)
                         && edgeSpansBefore.isEmpty()) {
@@ -936,7 +939,7 @@ public final class RoadNetworkManager {
                 network.removeEdge(edgeId);
                 // Selection updated only after successful commit — abort restores prior selection.
                 if (!remapVerticalDataAfterEdgeDeletion(
-                        roadId, before, stationSnapshot, edgeSpansBefore)) {
+                        roadId, before, stationSnapshot, edgeSpansBefore, priorEditedValid)) {
                     return Boolean.FALSE;
                 }
                 if (crossingCapture != null) {
@@ -968,7 +971,8 @@ public final class RoadNetworkManager {
             String roadId,
             SegmentGeometrySnapshot before,
             StationDataSnapshot stationSnapshot,
-            List<EdgeStationSpan> edgeSpansBefore) {
+            List<EdgeStationSpan> edgeSpansBefore,
+            boolean priorEditedValid) {
         if (roadId == null || roadId.isBlank()) {
             return true;
         }
@@ -994,16 +998,20 @@ public final class RoadNetworkManager {
             for (Road surviving : network.getRoads().values()) {
                 RoadTopologyRoadSplitter.demoteOpenLoopToLinear(network, surviving);
             }
-            return applyCapturedStationDataToSurvivingRoads(
-                stationSnapshot,
-                before != null ? before.totalLengthBefore() : 0.0,
-                edgeSpansBefore);
+            if (!applyCapturedStationDataToSurvivingRoads(
+                    stationSnapshot,
+                    before != null ? before.totalLengthBefore() : 0.0,
+                    edgeSpansBefore)) {
+                return false;
+            }
+            return rebindEditedOnSurvivingRoads(priorEditedValid, edgeSpansBefore);
         }
         if (loopOpen) {
             RoadTopologyRoadSplitter.demoteOpenLoopToLinear(network, road);
         }
         if (before == null || stationSnapshot == null || !stationSnapshot.hasPhase2Data()) {
-            return true;
+            return RoadStationDataTransforms.rebindEditedProfileAfterFinalGeometry(
+                network, road, priorEditedValid);
         }
         double deletedStart = before.rangeStart();
         double deletedEnd = before.rangeStart() + before.oldSegmentLength();
@@ -1033,6 +1041,32 @@ public final class RoadNetworkManager {
                 before.totalLengthBefore());
         }
         RoadTopologyInvariantValidator.syncStorageOrderIfMaintainable(network, road);
+        return RoadStationDataTransforms.rebindEditedProfileAfterFinalGeometry(
+            network, road, priorEditedValid);
+    }
+
+    private boolean rebindEditedOnSurvivingRoads(
+            boolean priorEditedValid,
+            List<EdgeStationSpan> edgeSpansBefore) {
+        if (edgeSpansBefore == null || edgeSpansBefore.isEmpty()) {
+            return true;
+        }
+        java.util.HashSet<String> seen = new java.util.HashSet<>();
+        for (EdgeStationSpan span : edgeSpansBefore) {
+            if (span == null || span.edgeId() == null) {
+                continue;
+            }
+            RoadEdge edge = network.getEdge(span.edgeId());
+            if (edge == null || edge.getRoadId() == null || !seen.add(edge.getRoadId())) {
+                continue;
+            }
+            Road surviving = network.getRoad(edge.getRoadId());
+            if (surviving != null
+                    && !RoadStationDataTransforms.rebindEditedProfileAfterFinalGeometry(
+                        network, surviving, priorEditedValid)) {
+                return false;
+            }
+        }
         return true;
     }
 
